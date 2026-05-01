@@ -51,6 +51,15 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper to update state and storage
+  const updateBookingsState = useCallback((newBookings: Booking[] | ((prev: Booking[]) => Booking[])) => {
+    setBookings(prev => {
+      const updated = typeof newBookings === 'function' ? newBookings(prev) : newBookings;
+      localStorage.setItem('supabase_bookings_fallback', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const fetchBookings = useCallback(async () => {
     if (!isSupabaseConfigured) {
       try {
@@ -75,17 +84,14 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (error) throw error;
       const parsed = (data || []).map(parseBooking);
-      setBookings(parsed);
-      
-      // Update fallback cache
-      localStorage.setItem('supabase_bookings_fallback', JSON.stringify(parsed));
+      updateBookingsState(parsed);
     } catch (err: any) {
       console.error('Error fetching from Supabase:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [updateBookingsState]);
 
   useEffect(() => {
     fetchBookings();
@@ -109,6 +115,17 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [fetchBookings]);
 
   const addBooking = useCallback(async (bookingData: any) => {
+    if (!isSupabaseConfigured) {
+      const newBooking = {
+        ...bookingData,
+        id: `local-${Date.now()}`,
+        status: 'approved',
+        createdAt: new Date().toISOString(),
+      };
+      updateBookingsState(prev => [...prev, newBooking as any]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -122,15 +139,20 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (error) throw error;
       
       if (data && data.length > 0) {
-        setBookings(prev => [...prev, parseBooking(data[0])]);
+        updateBookingsState(prev => [...prev, parseBooking(data[0])]);
       }
     } catch (err: any) {
       console.error('Error adding booking:', err);
       throw err;
     }
-  }, []);
+  }, [updateBookingsState]);
 
   const updateBookingStatus = useCallback(async (id: string, status: BookingStatus, rejectionReason?: string) => {
+    if (!isSupabaseConfigured) {
+      updateBookingsState(prev => prev.map(b => b.id === id ? { ...b, status, rejectionReason } : b));
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('bookings')
@@ -139,14 +161,19 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (error) throw error;
       
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status, rejectionReason } : b));
+      updateBookingsState(prev => prev.map(b => b.id === id ? { ...b, status, rejectionReason } : b));
     } catch (err: any) {
       console.error('Error updating status:', err);
       throw err;
     }
-  }, []);
+  }, [updateBookingsState]);
 
   const deleteBooking = useCallback(async (id: string) => {
+    if (!isSupabaseConfigured) {
+      updateBookingsState(prev => prev.filter(b => b.id !== id));
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('bookings')
@@ -155,12 +182,12 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (error) throw error;
       
-      setBookings(prev => prev.filter(b => b.id !== id));
+      updateBookingsState(prev => prev.filter(b => b.id !== id));
     } catch (err: any) {
       console.error('Error deleting booking:', err);
       throw err;
     }
-  }, []);
+  }, [updateBookingsState]);
 
   const value = useMemo(() => ({
     bookings,
