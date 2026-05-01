@@ -114,6 +114,7 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .from('bookings')
         .insert([{
           ...bookingData,
+          requesterEmail: (bookingData.requesterEmail || '').toLowerCase(),
           status: 'approved',
         }])
         .select();

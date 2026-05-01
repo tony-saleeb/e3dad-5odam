@@ -127,7 +127,7 @@ export default function BookingModal() {
         const { data: existing, error: checkError } = await supabase
           .from('bookings')
           .select('id')
-          .eq('requesterEmail', user.email)
+          .ilike('requesterEmail', user.email)
           .neq('status', 'rejected')
           .limit(1);
 

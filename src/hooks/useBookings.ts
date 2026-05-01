@@ -48,7 +48,11 @@ export function useBookings() {
 
   const hasUserAlreadyBooked = useCallback(
     (email: string) => {
-      return bookings.some(b => b.requesterEmail === email && b.status !== 'rejected');
+      const lowerEmail = email.toLowerCase();
+      return bookings.some(b => 
+        (b.requesterEmail || '').toLowerCase() === lowerEmail && 
+        b.status !== 'rejected'
+      );
     },
     [bookings]
   );
