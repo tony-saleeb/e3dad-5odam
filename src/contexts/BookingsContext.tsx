@@ -121,6 +121,7 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [fetchBookings]);
 
   const addBooking = useCallback(async (bookingData: any) => {
+    console.log('[BookingsContext] Adding booking:', bookingData);
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -142,9 +143,19 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }])
         .select();
 
-      if (error) throw error;
+      console.log('[BookingsContext] Insert result:', { data, error });
+
+      if (error) {
+        console.error('[BookingsContext] Supabase insert error:', error);
+        throw error;
+      }
       
-      if (data && data.length > 0) {
+      if (!data || data.length === 0) {
+        console.warn('[BookingsContext] Insert succeeded but no data returned. Check RLS policies.');
+        // Still refresh to be sure
+        await fetchBookings();
+        return;
+      }
         const newBooking = parseBooking(data[0]);
         setBookings(prev => [...prev, newBooking]);
 
