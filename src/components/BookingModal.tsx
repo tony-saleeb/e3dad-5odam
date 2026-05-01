@@ -4,20 +4,21 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBookings } from '@/hooks/useBookings';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
-import { services, rooms, timePeriods, churches, getChurchColor } from '@/data/initialData';
+import { timePeriods, churches, getChurchColor } from '@/data/initialData';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import InlineCalendar from './InlineCalendar';
 import { useToast } from './Toast';
+import { TeamMember } from '@/types';
 
 export default function BookingModal() {
   const { user } = useAuth();
   const { addBooking, isPeriodBooked } = useBookings();
-  const { 
-    isBookingModalOpen, 
-    closeBookingModal, 
-    selectedDate, 
-    selectedStartTime, 
+  const {
+    isBookingModalOpen,
+    closeBookingModal,
+    selectedDate,
+    selectedStartTime,
     selectedEndTime,
     setSelectedStartTime,
     setSelectedEndTime
@@ -26,21 +27,19 @@ export default function BookingModal() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
-  // CHURCH ADAPTATION: Form data modified based on new user prompt
+
   const [formData, setFormData] = useState({
     churchName: '',
-    title: '', // Acts as Project Title
+    title: '',
     teamName: '',
     ageGroup: '',
-    requesterName: '', // Legacy support
-    teammates: [] as string[],
+    teamMembers: [] as TeamMember[],
     date: selectedDate,
     startTime: '',
     endTime: '',
   });
 
-  const [newTeammate, setNewTeammate] = useState('');
+  const [newMember, setNewMember] = useState({ name: '', id: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -52,13 +51,12 @@ export default function BookingModal() {
         title: '',
         teamName: '',
         ageGroup: '',
-        requesterName: '',
-        teammates: [],
+        teamMembers: [],
         date: selectedDate,
         startTime: selectedStartTime || '',
         endTime: selectedEndTime || '',
       });
-      setNewTeammate('');
+      setNewMember({ name: '', id: '' });
     }
   }, [isBookingModalOpen, selectedDate, selectedStartTime, selectedEndTime]);
 
@@ -72,14 +70,13 @@ export default function BookingModal() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // CHURCH ADAPTATION: Enforce minimum of 3 teammates
   const validateStep2 = () => {
     const newErrors: Record<string, string> = {};
-    if (formData.teammates.length < 3) {
-      newErrors.teammates = 'يجب إضافة 3 أعضاء على الأقل';
+    if (formData.teamMembers.length < 3) {
+      newErrors.teamMembers = 'يجب إضافة 3 أعضاء على الأقل';
     }
-    if (formData.teammates.length > 20) {
-      newErrors.teammates = 'الحد الأقصى للمشاركين هو 20';
+    if (formData.teamMembers.length > 20) {
+      newErrors.teamMembers = 'الحد الأقصى للمشاركين هو 20';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -89,13 +86,13 @@ export default function BookingModal() {
     const newErrors: Record<string, string> = {};
     if (!formData.date) newErrors.date = 'يرجى اختيار تاريخ';
     if (!formData.startTime) newErrors.startTime = 'يرجى اختيار فترة زمنية';
-    
+
     if (formData.date && formData.startTime && formData.endTime) {
       if (isPeriodBooked(formData.date, formData.startTime, formData.endTime)) {
         newErrors.startTime = 'هذه الفترة محجوزة بالفعل، يرجى اختيار فترة أخرى';
       }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -103,7 +100,6 @@ export default function BookingModal() {
   const handleNext = () => {
     if (step === 1 && validateStep1()) setStep(2);
     else if (step === 2 && validateStep2()) setStep(3);
-    else if (step === 3) handleSubmit();
   };
 
   const handleBack = () => {
@@ -113,10 +109,10 @@ export default function BookingModal() {
   const { toast } = useToast();
 
   const handleSubmit = async () => {
+    if (!validateStep3()) return;
     setSubmitting(true);
     try {
-      // Set the requesterName as the first teammate
-      const primaryLeader = formData.teammates[0] || 'مجهول';
+      const primaryLeader = formData.teamMembers[0]?.name || user?.displayName || 'مجهول';
 
       await addBooking({
         title: formData.title,
@@ -130,7 +126,8 @@ export default function BookingModal() {
         churchName: formData.churchName,
         teamName: formData.teamName,
         ageGroup: formData.ageGroup,
-        teammates: formData.teammates,
+        teammates: formData.teamMembers.map(m => m.name), // legacy compat
+        teamMembers: formData.teamMembers,
       });
 
       toast.success(`تم تسجيل الحجز بنجاح`);
@@ -143,54 +140,71 @@ export default function BookingModal() {
     }
   };
 
-  const addTeammate = () => {
-    if (!newTeammate.trim()) return;
-    if (formData.teammates.length >= 20) {
-      setErrors({ teammates: 'الحد الأقصى للمشاركين هو 20' });
+  const addMember = () => {
+    if (!newMember.name.trim()) {
+      setErrors({ teamMembers: 'اسم العضو مطلوب' });
+      return;
+    }
+    if (!newMember.id.trim()) {
+      setErrors({ teamMembers: 'رقم الهوية مطلوب' });
+      return;
+    }
+    if (formData.teamMembers.length >= 20) {
+      setErrors({ teamMembers: 'الحد الأقصى للمشاركين هو 20' });
       return;
     }
     setFormData({
       ...formData,
-      teammates: [...formData.teammates, newTeammate.trim()],
+      teamMembers: [...formData.teamMembers, { name: newMember.name.trim(), id: newMember.id.trim() }],
     });
-    setNewTeammate('');
+    setNewMember({ name: '', id: '' });
     setErrors({});
   };
 
-  const removeTeammate = (index: number) => {
-    const updated = [...formData.teammates];
+  const removeMember = (index: number) => {
+    const updated = [...formData.teamMembers];
     updated.splice(index, 1);
-    setFormData({ ...formData, teammates: updated });
+    setFormData({ ...formData, teamMembers: updated });
   };
 
   if (!isBookingModalOpen) return null;
 
-  const stepTitles = ['البيانات الأساسية', 'أسماء المشاركين', 'مراجعة'];
+  const stepTitles = ['البيانات الأساسية', 'أعضاء الفريق', 'مراجعة وتأكيد'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeBookingModal} />
 
-      <div className="relative w-full h-[92vh] sm:h-auto sm:max-h-[85vh] md:max-w-4xl transition-all duration-300">
+      <div className="relative w-full h-[92vh] sm:h-auto sm:max-h-[90vh] md:max-w-4xl transition-all duration-300">
         <div className="bg-white rounded-t-[1.5rem] sm:rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] flex flex-col h-full overflow-hidden border border-slate-100">
+
+          {/* Header */}
           <div className="px-4 sm:px-8 py-4 sm:py-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex justify-between items-center shadow-md shadow-emerald-900/10" dir="rtl">
             <div>
               <h2 className="text-xl sm:text-2xl font-black tracking-tight">{stepTitles[step - 1]}</h2>
-              <p className="text-emerald-100/80 text-[10px] sm:text-xs font-semibold mt-0.5 uppercase tracking-wide">إعداد حجز الكنائس</p>
+              <div className="flex items-center gap-2 mt-1">
+                {[1, 2, 3].map(s => (
+                  <div key={s} className={`h-1.5 rounded-full transition-all ${s === step ? 'w-6 bg-white' : s < step ? 'w-3 bg-white/60' : 'w-3 bg-white/30'}`} />
+                ))}
+              </div>
             </div>
-            <button onClick={closeBookingModal} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white hover:scale-105 transition-all font-medium text-lg">&times;</button>
+            <button onClick={closeBookingModal} className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white hover:scale-105 transition-all font-medium text-xl">&times;</button>
           </div>
 
-          <div className="flex-1 p-4 sm:p-6 pb-24 sm:pb-20 overflow-y-auto" dir="rtl">
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto" dir="rtl">
+
+            {/* STEP 1: Basic Data */}
             {step === 1 && (
-              <div className="space-y-6 animate-fade-in py-4 px-2">
+              <div className="p-4 sm:p-6 space-y-5 animate-fade-in">
+                {/* Church Name */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2 tracking-wide">اسم الكنيسة *</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">اسم الكنيسة *</label>
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="w-full px-5 py-3.5 border border-slate-200 rounded-2xl focus:outline-none bg-white shadow-sm font-medium text-slate-800 flex items-center justify-between cursor-pointer transition-all hover:border-slate-300"
+                      className="w-full px-5 py-3.5 border border-slate-200 rounded-2xl bg-white shadow-sm font-medium text-slate-800 flex items-center justify-between cursor-pointer transition-all hover:border-slate-300"
                     >
                       <span className="flex items-center gap-2.5">
                         {formData.churchName ? (
@@ -206,7 +220,7 @@ export default function BookingModal() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
-                    
+
                     {isDropdownOpen && (
                       <div className="absolute z-50 mt-2 w-full bg-white border border-slate-200/60 rounded-2xl shadow-xl max-h-60 overflow-y-auto animate-fade-in p-1.5">
                         {churches.map((church, idx) => (
@@ -225,10 +239,12 @@ export default function BookingModal() {
                       </div>
                     )}
                   </div>
-                  {errors.churchName && <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />{errors.churchName}</p>}
+                  {errors.churchName && <p className="text-red-500 text-xs mt-1.5 font-bold">{errors.churchName}</p>}
                 </div>
+
+                {/* Project Title */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2 tracking-wide">عنوان المشروع *</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">عنوان المشروع *</label>
                   <input
                     type="text"
                     value={formData.title}
@@ -236,10 +252,12 @@ export default function BookingModal() {
                     className="w-full px-5 py-3.5 border border-slate-200 rounded-2xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm font-medium text-slate-800 placeholder-slate-400 transition-all"
                     placeholder="أدخل عنوان المشروع"
                   />
-                  {errors.title && <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />{errors.title}</p>}
+                  {errors.title && <p className="text-red-500 text-xs mt-1.5 font-bold">{errors.title}</p>}
                 </div>
+
+                {/* Team Name */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2 tracking-wide">اسم الفريق *</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">اسم الفريق *</label>
                   <input
                     type="text"
                     value={formData.teamName}
@@ -247,10 +265,12 @@ export default function BookingModal() {
                     className="w-full px-5 py-3.5 border border-slate-200 rounded-2xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm font-medium text-slate-800 placeholder-slate-400 transition-all"
                     placeholder="أدخل اسم الفريق"
                   />
-                  {errors.teamName && <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />{errors.teamName}</p>}
+                  {errors.teamName && <p className="text-red-500 text-xs mt-1.5 font-bold">{errors.teamName}</p>}
                 </div>
+
+                {/* Age Group */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2 tracking-wide">المرحلة العمرية *</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">المرحلة العمرية *</label>
                   <input
                     type="text"
                     value={formData.ageGroup}
@@ -258,83 +278,171 @@ export default function BookingModal() {
                     className="w-full px-5 py-3.5 border border-slate-200 rounded-2xl focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm font-medium text-slate-800 placeholder-slate-400 transition-all"
                     placeholder="أدخل المرحلة العمرية"
                   />
-                  {errors.ageGroup && <p className="text-red-500 text-xs mt-1.5 font-bold flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />{errors.ageGroup}</p>}
+                  {errors.ageGroup && <p className="text-red-500 text-xs mt-1.5 font-bold">{errors.ageGroup}</p>}
                 </div>
               </div>
             )}
 
+            {/* STEP 2: Team Members with IDs */}
             {step === 2 && (
-              <div className="space-y-4 animate-fade-in">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">أسماء المشاركين ({formData.teammates.length}/20) *</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newTeammate}
-                    onChange={(e) => setNewTeammate(e.target.value)}
-                    className="flex-1 px-4 py-2 border rounded-xl focus:outline-none focus:border-emerald-500"
-                    placeholder="أدخل اسم المشارك"
-                    onKeyDown={(e) => e.key === 'Enter' && addTeammate()}
-                  />
-                  <button type="button" onClick={addTeammate} className="px-4 bg-emerald-600 text-white rounded-xl">إضافة</button>
+              <div className="p-4 sm:p-6 space-y-4 animate-fade-in">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-sm text-emerald-700 font-medium">
+                  أضف أعضاء الفريق مع رقم هوية كل عضو — الحد الأدنى 3 أعضاء.
                 </div>
-                {errors.teammates && <p className="text-red-500 text-xs mt-1">{errors.teammates}</p>}
 
-                <div className="mt-4 space-y-2">
-                  {formData.teammates.map((name, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded-xl">
-                      <span className="text-gray-800 text-sm">{name}</span>
-                      <button type="button" onClick={() => removeTeammate(index)} className="text-red-500 text-sm font-bold">حذف</button>
+                {/* Add member form */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                  <label className="block text-sm font-bold text-slate-700">
+                    أعضاء الفريق ({formData.teamMembers.length}/20) *
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={newMember.name}
+                      onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
+                      className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 bg-white text-sm"
+                      placeholder="اسم العضو"
+                      onKeyDown={(e) => e.key === 'Enter' && addMember()}
+                    />
+                    <input
+                      type="text"
+                      value={newMember.id}
+                      onChange={(e) => setNewMember({ ...newMember, id: e.target.value })}
+                      className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 bg-white text-sm"
+                      placeholder="رقم الهوية"
+                      onKeyDown={(e) => e.key === 'Enter' && addMember()}
+                    />
+                    <button
+                      type="button"
+                      onClick={addMember}
+                      className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 active:scale-95 transition-all shrink-0"
+                    >
+                      + إضافة
+                    </button>
+                  </div>
+                  {errors.teamMembers && <p className="text-red-500 text-xs font-bold">{errors.teamMembers}</p>}
+                </div>
+
+                {/* Members list */}
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {formData.teamMembers.map((member, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-black">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <p className="text-slate-800 text-sm font-bold">{member.name}</p>
+                          <p className="text-slate-400 text-xs">الهوية: {member.id}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeMember(index)}
+                        className="text-red-400 hover:text-red-600 text-xs font-bold px-2 py-1 rounded-lg hover:bg-red-50 transition-all"
+                      >
+                        حذف
+                      </button>
                     </div>
                   ))}
+                  {formData.teamMembers.length === 0 && (
+                    <p className="text-center text-slate-400 text-sm py-6">لم يتم إضافة أعضاء بعد</p>
+                  )}
                 </div>
               </div>
             )}
 
+            {/* STEP 3: Review + Date/Time Selection */}
             {step === 3 && (
-              <div className="space-y-6 animate-fade-in py-4 px-2">
-                <div className="bg-slate-50 rounded-[2rem] p-6 sm:p-8 border border-slate-100 shadow-inner">
-                  <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-200/60 pb-3">
-                    <span className="w-2.5 h-6 rounded-full bg-emerald-500 inline-block"></span>
+              <div className="p-4 sm:p-6 space-y-6 animate-fade-in">
+
+                {/* Date & Time Picker */}
+                <div className="space-y-4">
+                  <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                    <span className="w-2 h-5 rounded-full bg-emerald-500 inline-block" />
+                    اختر التاريخ والفترة الزمنية
+                  </h3>
+
+                  <InlineCalendar
+                    selectedDate={formData.date}
+                    onSelectDate={(date) => setFormData({ ...formData, date })}
+                  />
+
+                  {/* Time Periods */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {timePeriods.map((period) => {
+                      const isSelected = formData.startTime === period.startTime;
+                      const isBooked = formData.date ? isPeriodBooked(formData.date, period.startTime, period.endTime) : false;
+                      return (
+                        <button
+                          key={period.id}
+                          type="button"
+                          disabled={isBooked}
+                          onClick={() => {
+                            if (!isBooked) {
+                              setFormData({ ...formData, startTime: period.startTime, endTime: period.endTime });
+                              setErrors({ ...errors, startTime: '' });
+                            }
+                          }}
+                          className={`p-4 rounded-2xl border-2 text-center transition-all ${
+                            isSelected
+                              ? 'border-emerald-500 bg-emerald-50 shadow-md shadow-emerald-100'
+                              : isBooked
+                              ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed'
+                              : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/30 cursor-pointer'
+                          }`}
+                        >
+                          <p className={`font-black text-sm ${isSelected ? 'text-emerald-700' : isBooked ? 'text-slate-400' : 'text-slate-700'}`}>
+                            {period.label}
+                          </p>
+                          <p className={`text-xs mt-0.5 ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            {period.startTime} – {period.endTime}
+                          </p>
+                          {isBooked && <p className="text-xs text-red-400 font-bold mt-1">محجوز</p>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.startTime && <p className="text-red-500 text-xs font-bold">{errors.startTime}</p>}
+                  {errors.date && <p className="text-red-500 text-xs font-bold">{errors.date}</p>}
+                </div>
+
+                {/* Summary */}
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                  <h3 className="text-base font-black text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-200 pb-3">
+                    <span className="w-2 h-5 rounded-full bg-teal-500 inline-block" />
                     ملخص الحجز
                   </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 text-sm text-slate-600">
-                    <div className="space-y-1">
-                      <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">اسم الكنيسة</span>
-                      <span className="text-base font-black text-slate-800">{formData.churchName}</span>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">عنوان المشروع</span>
-                      <span className="text-base font-black text-slate-800">{formData.title}</span>
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">اسم الفريق</span>
-                      <span className="text-base font-black text-slate-800">{formData.teamName}</span>
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">المرحلة العمرية</span>
-                      <span className="text-base font-black text-slate-800">{formData.ageGroup}</span>
-                    </div>
-
-                    <div className="space-y-1">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {[
+                      { label: 'الكنيسة', value: formData.churchName },
+                      { label: 'المشروع', value: formData.title },
+                      { label: 'الفريق', value: formData.teamName },
+                      { label: 'المرحلة العمرية', value: formData.ageGroup },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">{label}</span>
+                        <span className="text-slate-800 font-black">{value || '—'}</span>
+                      </div>
+                    ))}
+                    <div>
                       <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">التاريخ</span>
-                      <span className="text-base font-bold text-emerald-700 bg-emerald-50/50 border border-emerald-200/50 px-3.5 py-1.5 rounded-xl inline-block mt-1">{formData.date}</span>
+                      <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200/50 px-2 py-1 rounded-lg inline-block text-xs mt-1">{formData.date || '—'}</span>
                     </div>
-
-                    <div className="space-y-1">
-                      <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">الفترة المحددة</span>
-                      <span className="text-base font-bold text-teal-700 bg-teal-50/50 border border-teal-200/50 px-3.5 py-1.5 rounded-xl inline-block mt-1">{formData.startTime} – {formData.endTime}</span>
+                    <div>
+                      <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">الفترة</span>
+                      <span className="text-teal-700 font-bold bg-teal-50 border border-teal-200/50 px-2 py-1 rounded-lg inline-block text-xs mt-1">
+                        {formData.startTime ? `${formData.startTime} – ${formData.endTime}` : '—'}
+                      </span>
                     </div>
                   </div>
-
-                  <div className="mt-8 pt-5 border-t border-slate-200/60 space-y-2">
-                    <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider mb-2">المشاركون ({formData.teammates.length})</span>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.teammates.map((name, idx) => (
-                        <span key={idx} className="bg-white border border-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm hover:border-slate-300 transition-all">{name}</span>
+                  <div className="mt-4 pt-3 border-t border-slate-200">
+                    <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider mb-2">الأعضاء ({formData.teamMembers.length})</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {formData.teamMembers.map((m, i) => (
+                        <span key={i} className="bg-white border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm">
+                          {m.name} <span className="text-slate-400">({m.id})</span>
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -343,24 +451,40 @@ export default function BookingModal() {
             )}
           </div>
 
-          <div className="px-8 py-5 bg-slate-50 flex gap-4 border-t border-slate-100" dir="rtl">
+          {/* Footer Buttons */}
+          <div className="px-4 sm:px-8 py-4 sm:py-5 bg-slate-50 flex gap-3 border-t border-slate-100 shrink-0" dir="rtl">
             {step > 1 && (
-              <button 
-                onClick={handleBack} 
-                disabled={submitting} 
+              <button
+                onClick={handleBack}
+                disabled={submitting}
                 className="flex-1 py-3.5 px-6 border border-slate-200 hover:bg-slate-100/80 rounded-2xl text-slate-700 font-bold transition-all disabled:opacity-50"
               >
                 رجوع
               </button>
             )}
-            <button 
-              onClick={handleNext} 
-              disabled={submitting} 
-              className="flex-1 py-3.5 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:shadow-emerald-600/30 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
-            >
-              {submitting ? 'جاري الإرسال...' : (step === 3 ? 'تأكيد الحجز' : 'التالي')}
-            </button>
+            {step < 3 ? (
+              <button
+                onClick={handleNext}
+                className="flex-1 py-3.5 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all"
+              >
+                التالي
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || !formData.date || !formData.startTime}
+                className="flex-1 py-3.5 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    جاري الإرسال...
+                  </>
+                ) : 'تأكيد الحجز ✓'}
+              </button>
+            )}
           </div>
+
         </div>
       </div>
     </div>

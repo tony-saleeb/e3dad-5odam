@@ -19,12 +19,18 @@ const parseBooking = (b: any): Booking => {
       // Not JSON, use as-is
     }
   }
+
+  let teamMembers = b.teamMembers;
+  if (typeof teamMembers === 'string') {
+    try { teamMembers = JSON.parse(teamMembers); } catch { teamMembers = undefined; }
+  }
   
   return {
     ...b,
     title,
     teamName,
-    ageGroup
+    ageGroup,
+    teamMembers,
   };
 };
 
@@ -116,6 +122,9 @@ export function useBookings() {
               startTime: bookingData.startTime,
               endTime: bookingData.endTime,
               teammates: bookingData.teammates,
+              teamMembers: bookingData.teamMembers ? JSON.stringify(bookingData.teamMembers) : null,
+              requesterEmail: bookingData.requesterEmail,
+              requesterName: bookingData.requesterName,
               status: 'approved', // Auto approve
             },
           ])

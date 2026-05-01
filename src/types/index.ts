@@ -45,6 +45,12 @@ export interface TimePeriod {
   endTime: string;   // HH:MM format
 }
 
+// CHURCH ADAPTATION: Team member with name + ID
+export interface TeamMember {
+  name: string;
+  id: string; // National ID or church ID
+}
+
 export interface Booking {
   id: string;
   title: string; // CHURCH ADAPTATION: This becomes "Project Title"
@@ -65,7 +71,8 @@ export interface Booking {
   churchName?: string;
   teamName?: string;
   ageGroup?: string;
-  teammates?: string[]; // Array of teammate names
+  teammates?: string[]; // Legacy: Array of teammate names
+  teamMembers?: TeamMember[]; // New: Array of {name, id} objects
 }
 
 export interface DayBookings {
