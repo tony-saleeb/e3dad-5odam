@@ -24,6 +24,7 @@ const parseBooking = (b: any): Booking => {
   let requesterEmail = b.requester_email || b.requesterEmail || '';
   let requesterName = b.requester_name || b.requesterName || '';
   let teamMembers = b.team_members || b.teamMembers;
+  let teammates = b.teammates || [];
   
   if (title.startsWith('{') && title.endsWith('}')) {
     try {
@@ -39,6 +40,10 @@ const parseBooking = (b: any): Booking => {
   if (typeof teamMembers === 'string') {
     try { teamMembers = JSON.parse(teamMembers); } catch { teamMembers = undefined; }
   }
+
+  if (typeof teammates === 'string') {
+    teammates = teammates.split(',').map((s: string) => s.trim()).filter(Boolean);
+  }
   
   return {
     ...b,
@@ -49,6 +54,7 @@ const parseBooking = (b: any): Booking => {
     requesterEmail,
     requesterName,
     teamMembers,
+    teammates,
   };
 };
 
@@ -130,8 +136,8 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           church_name: bookingData.churchName,
           team_name: bookingData.teamName,
           age_group: bookingData.ageGroup,
-          team_members: bookingData.teamMembers ? JSON.stringify(bookingData.teamMembers) : null,
-          teammates: Array.isArray(bookingData.teammates) ? bookingData.teammates.join(', ') : bookingData.teammates,
+          team_members: bookingData.teamMembers || null,
+          teammates: Array.isArray(bookingData.teammates) ? bookingData.teammates : (bookingData.teammates ? [bookingData.teammates] : []),
           status: 'approved',
         }])
         .select();
