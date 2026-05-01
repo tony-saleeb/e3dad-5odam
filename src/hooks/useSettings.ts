@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { doc, getDocs, collection, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { AppSettings, TimePeriod } from '@/types';
 import { timePeriods as defaultTimePeriods, ALLOWED_DAYS, getDateRange } from '@/data/initialData';
 
@@ -19,23 +20,15 @@ export function useSettings() {
   const [loading, setLoading] = useState(true);
 
   const fetchSettings = useCallback(async () => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
-    }
-
     try {
-      const { data, error } = await supabase
-        .from('settings')
-        .select('*');
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
+      const querySnapshot = await getDocs(collection(db, 'settings'));
+      
+      if (!querySnapshot.empty) {
         const newSettings = { ...defaultSettings };
-        data.forEach((row: any) => {
-          if (row.key === 'time_periods') newSettings.timePeriods = row.value;
-          if (row.key === 'booking_range') newSettings.bookingRange = row.value;
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (doc.id === 'time_periods') newSettings.timePeriods = data.value;
+          if (doc.id === 'booking_range') newSettings.bookingRange = data.value;
         });
         setSettings(newSettings);
       }
@@ -51,14 +44,11 @@ export function useSettings() {
   }, [fetchSettings]);
 
   const updateSettings = async (key: 'time_periods' | 'booking_range', value: any) => {
-    if (!isSupabaseConfigured) return;
-
     try {
-      const { error } = await supabase
-        .from('settings')
-        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-
-      if (error) throw error;
+      await setDoc(doc(db, 'settings', key), {
+        value,
+        updatedAt: new Date().toISOString()
+      });
       await fetchSettings();
       return true;
     } catch (err) {

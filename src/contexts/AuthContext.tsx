@@ -3,7 +3,8 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, User } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export interface UserData {
   uid: string;
@@ -37,36 +38,22 @@ async function getUserRole(email: string): Promise<'admin' | 'user' | null> {
 
   // Check if hardcoded admin
   if (ADMIN_EMAILS.includes(lowerEmail)) {
-    console.log('[Auth] Admin from env:', lowerEmail);
     return 'admin';
   }
 
-  // Check allowed_users table in Supabase
-  if (!isSupabaseConfigured) {
-    console.log('[Auth] Supabase not configured');
-    return null;
+  // Check allowed_users collection in Firestore
+  try {
+    const docRef = doc(db, 'allowed_users', lowerEmail);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return docSnap.data().role as 'admin' | 'user';
+    }
+  } catch (error) {
+    console.error('[Auth] Firestore error:', error);
   }
 
-  console.log('[Auth] Checking Supabase for:', lowerEmail);
-  const { data, error } = await supabase
-    .from('allowed_users')
-    .select('*')
-    .eq('email', lowerEmail)
-    .maybeSingle();
-
-  console.log('[Auth] Supabase result:', { data, error });
-
-  if (error) {
-    console.error('[Auth] Supabase error:', error.message);
-    return null;
-  }
-  if (!data) {
-    console.log('[Auth] User not found in allowed_users');
-    return null;
-  }
-
-  console.log('[Auth] Found role:', data.role);
-  return data.role as 'admin' | 'user';
+  return null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

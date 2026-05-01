@@ -1,7 +1,16 @@
-'use client';
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc,
+  Timestamp
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Booking, BookingStatus } from '@/types';
 
 interface BookingsContextType {
@@ -16,7 +25,9 @@ interface BookingsContextType {
 
 const BookingsContext = createContext<BookingsContextType | undefined>(undefined);
 
-const parseBooking = (b: any): Booking => {
+const parseBooking = (id: string, b: any): Booking => {
+  if (!b) return {} as Booking;
+
   let title = b.title || '';
   let teamName = b.team_name || b.teamName || '';
   let ageGroup = b.age_group || b.ageGroup || '';
@@ -26,7 +37,7 @@ const parseBooking = (b: any): Booking => {
   let teamMembers = b.team_members || b.teamMembers;
   let teammates = b.teammates || [];
   
-  if (title.startsWith('{') && title.endsWith('}')) {
+  if (typeof title === 'string' && title.startsWith('{') && title.endsWith('}')) {
     try {
       const parsed = JSON.parse(title);
       title = parsed.t || title;
@@ -42,11 +53,12 @@ const parseBooking = (b: any): Booking => {
   }
 
   if (typeof teammates === 'string') {
-    teammates = teammates.split(',').map((s: string) => s.trim()).filter(Boolean);
+    teammates = (teammates as string).split(',').map((s: string) => s.trim()).filter(Boolean);
   }
   
   return {
     ...b,
+    id,
     title,
     teamName,
     ageGroup,
@@ -63,120 +75,62 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchBookings = useCallback(async () => {
-    if (!isSupabaseConfigured) {
-      try {
-        const localData = localStorage.getItem('supabase_bookings_fallback');
-        if (localData) {
-          setBookings(JSON.parse(localData));
-        }
-      } catch (err) {
-        console.error('Error reading fallback cache:', err);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .order('date', { ascending: true });
-
-      if (error) throw error;
-      const parsed = (data || []).map(parseBooking);
-      setBookings(parsed);
-      
-      // Update fallback cache
-      localStorage.setItem('supabase_bookings_fallback', JSON.stringify(parsed));
-    } catch (err: any) {
-      console.error('Error fetching from Supabase:', err);
-      setError(err.message);
-    } finally {
+  useEffect(() => {
+    setLoading(true);
+    const q = query(collection(db, 'bookings'), orderBy('date', 'asc'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const bookingsData = snapshot.docs.map(doc => parseBooking(doc.id, doc.data()));
+      setBookings(bookingsData);
       setLoading(false);
-    }
+    }, (err) => {
+      console.error('Firestore Error:', err);
+      setError(err.message);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    fetchBookings();
-
-    if (!isSupabaseConfigured) return;
-
-    const channel = supabase
-      .channel('bookings_changes_global')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bookings' },
-        () => {
-          fetchBookings();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchBookings]);
-
   const addBooking = useCallback(async (bookingData: any) => {
-    console.log('[BookingsContext] Adding booking:', bookingData);
     try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert([{
-          title: bookingData.title,
-          requester_name: bookingData.requesterName,
-          requester_email: (bookingData.requesterEmail || '').toLowerCase(),
-          service_id: bookingData.serviceId,
-          room_id: bookingData.roomId,
-          date: bookingData.date,
-          start_time: bookingData.startTime,
-          end_time: bookingData.endTime,
-          church_name: bookingData.churchName,
-          team_name: bookingData.teamName,
-          age_group: bookingData.ageGroup,
-          team_members: bookingData.teamMembers || null,
-          teammates: Array.isArray(bookingData.teammates) ? bookingData.teammates : (bookingData.teammates ? [bookingData.teammates] : []),
-          status: 'approved',
-        }])
-        .select();
+      const docData = {
+        title: bookingData.title,
+        requester_name: bookingData.requesterName,
+        requester_email: (bookingData.requesterEmail || '').toLowerCase(),
+        service_id: bookingData.serviceId,
+        room_id: bookingData.roomId,
+        date: bookingData.date,
+        start_time: bookingData.startTime,
+        end_time: bookingData.endTime,
+        church_name: bookingData.churchName,
+        team_name: bookingData.teamName,
+        age_group: bookingData.ageGroup,
+        team_members: bookingData.teamMembers || null,
+        teammates: Array.isArray(bookingData.teammates) ? bookingData.teammates : (bookingData.teammates ? [bookingData.teammates] : []),
+        status: 'approved',
+        createdAt: Timestamp.now(),
+      };
 
-      console.log('[BookingsContext] Insert result:', { data, error });
-
-      if (error) {
-        console.error('[BookingsContext] Supabase insert error:', error);
-        throw error;
-      }
+      const docRef = await addDoc(collection(db, 'bookings'), docData);
       
-      if (!data || data.length === 0) {
-        console.warn('[BookingsContext] Insert succeeded but no data returned. Check RLS policies.');
-        // Still refresh to be sure
-        await fetchBookings();
-        return;
-      }
-        const newBooking = parseBooking(data[0]);
-        setBookings(prev => [...prev, newBooking]);
-
-        // Sync to Google Sheets
-        const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
-        if (webhookUrl) {
-          fetch(webhookUrl, {
-            method: 'POST',
-            body: JSON.stringify({
-              action: 'ADD',
-              ...newBooking,
-              // Flatten members for sheet
-              members: Array.isArray(bookingData.teamMembers) 
-                ? bookingData.teamMembers.map((m: any) => `${m.name} (${m.id})`).join(', ') 
-                : ''
-            })
-          }).catch(err => console.error('Webhook error:', err));
-        }
+      // Sync to Google Sheets
+      const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
+      if (webhookUrl) {
+        const newBooking = parseBooking(docRef.id, docData);
+        fetch(webhookUrl, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'ADD',
+            ...newBooking,
+            members: Array.isArray(bookingData.teamMembers) 
+              ? bookingData.teamMembers.map((m: any) => `${m.name} (${m.id})`).join(', ') 
+              : ''
+          })
+        }).catch(err => console.error('Webhook error:', err));
       }
     } catch (err: any) {
-      console.error('Error adding booking to Supabase:', err);
+      console.error('Error adding booking to Firestore:', err);
       throw err;
     }
   }, []);
@@ -184,14 +138,9 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateBookingStatus = useCallback(async (id: string, status: BookingStatus, rejectionReason?: string) => {
     try {
       const target = bookings.find(b => b.id === id);
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status, rejectionReason })
-        .eq('id', id);
-
-      if (error) throw error;
+      const docRef = doc(db, 'bookings', id);
       
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status, rejectionReason } : b));
+      await updateDoc(docRef, { status, rejectionReason });
 
       // Sync to Google Sheets
       const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
@@ -215,14 +164,9 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const deleteBooking = useCallback(async (id: string) => {
     try {
       const target = bookings.find(b => b.id === id);
-      const { error } = await supabase
-        .from('bookings')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const docRef = doc(db, 'bookings', id);
       
-      setBookings(prev => prev.filter(b => b.id !== id));
+      await deleteDoc(docRef);
 
       // Sync to Google Sheets
       const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
@@ -251,8 +195,8 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     addBooking,
     updateBookingStatus,
     deleteBooking,
-    refreshBookings: fetchBookings,
-  }), [bookings, loading, error, addBooking, updateBookingStatus, deleteBooking, fetchBookings]);
+    refreshBookings: async () => {}, // No-op since we use onSnapshot
+  }), [bookings, loading, error, addBooking, updateBookingStatus, deleteBooking]);
 
   return (
     <BookingsContext.Provider value={value}>

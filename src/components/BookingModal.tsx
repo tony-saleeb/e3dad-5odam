@@ -6,7 +6,7 @@ import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { churches, getChurchColor } from '@/data/initialData';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { useToast } from './Toast';
@@ -124,19 +124,17 @@ export default function BookingModal() {
     try {
       // 2. Server-side double check (secure)
       if (!isAdmin && user?.email) {
-        const { data: existing, error: checkError } = await supabase
-          .from('bookings')
-          .select('id')
-          .ilike('requester_email', user.email)
-          .neq('status', 'rejected')
-          .limit(1);
+        const { getDocs, collection, query, where, limit } = await import('firebase/firestore');
+        const q = query(
+          collection(db, 'bookings'),
+          where('requester_email', '==', user.email.toLowerCase()),
+          where('status', '!=', 'rejected'),
+          limit(1)
+        );
+        
+        const querySnapshot = await getDocs(q);
 
-        if (checkError) {
-          console.error('Check error:', checkError);
-          throw new Error('فشل في التحقق من الحجوزات السابقة');
-        }
-
-        if (existing && existing.length > 0) {
+        if (!querySnapshot.empty) {
           toast.error('عذراً، يسمح لكل مستخدم بحجز واحد فقط.');
           setSubmitting(false);
           return;
