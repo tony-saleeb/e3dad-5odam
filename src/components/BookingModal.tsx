@@ -123,11 +123,12 @@ export default function BookingModal() {
     setSubmitting(true);
     try {
       // 2. Server-side double check (secure)
-      if (!isAdmin && user?.email) {
+      const userEmail = user?.email?.trim().toLowerCase();
+      if (!isAdmin && userEmail) {
         const { data: existing, error: checkError } = await supabase
           .from('bookings')
           .select('id')
-          .ilike('requesterEmail', user.email)
+          .ilike('requesterEmail', userEmail)
           .neq('status', 'rejected')
           .limit(1);
 

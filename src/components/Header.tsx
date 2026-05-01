@@ -138,6 +138,25 @@ export default function Header() {
                       )}
 
                       <div className="border-t border-slate-100 my-1" />
+                      
+                      {/* Active Booking status for users */}
+                      {!isAdmin && user?.email && (
+                        <div className="px-5 py-3 bg-slate-50/50">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">حالتك الحالية</p>
+                          {userAlreadyBooked ? (
+                            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                              <p className="text-xs font-bold text-emerald-800">لديك حجز نشط بالفعل ✅</p>
+                              <p className="text-[10px] text-emerald-600 mt-1">يجب حذف الحجز الحالي لتتمكن من حجز موعد جديد.</p>
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-slate-100 rounded-xl border border-slate-200">
+                              <p className="text-xs font-bold text-slate-500">ليس لديك حجوزات حالياً ℹ️</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="border-t border-slate-100 my-1" />
 
                       <button
                         onClick={handleSignOut}
