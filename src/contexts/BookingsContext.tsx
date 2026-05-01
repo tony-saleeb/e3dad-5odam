@@ -18,21 +18,24 @@ const BookingsContext = createContext<BookingsContextType | undefined>(undefined
 
 const parseBooking = (b: any): Booking => {
   let title = b.title || '';
-  let teamName = '';
-  let ageGroup = '';
+  let teamName = b.team_name || b.teamName || '';
+  let ageGroup = b.age_group || b.ageGroup || '';
+  let churchName = b.church_name || b.churchName || '';
+  let requesterEmail = b.requester_email || b.requesterEmail || '';
+  let requesterName = b.requester_name || b.requesterName || '';
+  let teamMembers = b.team_members || b.teamMembers;
   
   if (title.startsWith('{') && title.endsWith('}')) {
     try {
       const parsed = JSON.parse(title);
       title = parsed.t || title;
-      teamName = parsed.tn || '';
-      ageGroup = parsed.ag || '';
+      teamName = parsed.tn || teamName;
+      ageGroup = parsed.ag || ageGroup;
     } catch (e) {
       // Not JSON, use as-is
     }
   }
 
-  let teamMembers = b.teamMembers;
   if (typeof teamMembers === 'string') {
     try { teamMembers = JSON.parse(teamMembers); } catch { teamMembers = undefined; }
   }
@@ -42,6 +45,9 @@ const parseBooking = (b: any): Booking => {
     title,
     teamName,
     ageGroup,
+    churchName,
+    requesterEmail,
+    requesterName,
     teamMembers,
   };
 };
@@ -113,9 +119,18 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const { data, error } = await supabase
         .from('bookings')
         .insert([{
-          ...bookingData,
-          requesterEmail: (bookingData.requesterEmail || '').toLowerCase(),
-          teamMembers: bookingData.teamMembers ? JSON.stringify(bookingData.teamMembers) : null,
+          title: bookingData.title,
+          requester_name: bookingData.requesterName,
+          requester_email: (bookingData.requesterEmail || '').toLowerCase(),
+          service_id: bookingData.serviceId,
+          room_id: bookingData.roomId,
+          date: bookingData.date,
+          start_time: bookingData.startTime,
+          end_time: bookingData.endTime,
+          church_name: bookingData.churchName,
+          team_name: bookingData.teamName,
+          age_group: bookingData.ageGroup,
+          team_members: bookingData.teamMembers ? JSON.stringify(bookingData.teamMembers) : null,
           teammates: Array.isArray(bookingData.teammates) ? bookingData.teammates.join(', ') : bookingData.teammates,
           status: 'approved',
         }])
