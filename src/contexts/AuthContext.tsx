@@ -36,18 +36,36 @@ async function getUserRole(email: string): Promise<'admin' | 'user' | null> {
   const lowerEmail = email.toLowerCase();
 
   // Check if hardcoded admin
-  if (ADMIN_EMAILS.includes(lowerEmail)) return 'admin';
+  if (ADMIN_EMAILS.includes(lowerEmail)) {
+    console.log('[Auth] Admin from env:', lowerEmail);
+    return 'admin';
+  }
 
   // Check allowed_users table in Supabase
-  if (!isSupabaseConfigured) return null;
+  if (!isSupabaseConfigured) {
+    console.log('[Auth] Supabase not configured');
+    return null;
+  }
 
+  console.log('[Auth] Checking Supabase for:', lowerEmail);
   const { data, error } = await supabase
     .from('allowed_users')
-    .select('role')
+    .select('*')
     .eq('email', lowerEmail)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) return null;
+  console.log('[Auth] Supabase result:', { data, error });
+
+  if (error) {
+    console.error('[Auth] Supabase error:', error.message);
+    return null;
+  }
+  if (!data) {
+    console.log('[Auth] User not found in allowed_users');
+    return null;
+  }
+
+  console.log('[Auth] Found role:', data.role);
   return data.role as 'admin' | 'user';
 }
 
