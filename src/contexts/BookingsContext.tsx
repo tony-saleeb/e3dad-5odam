@@ -1,18 +1,18 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc,
-  Timestamp
-} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { Booking, BookingStatus } from '@/types';
 
 interface BookingsContextType {
@@ -27,48 +27,38 @@ interface BookingsContextType {
 
 const BookingsContext = createContext<BookingsContextType | undefined>(undefined);
 
-const parseBooking = (id: string, b: any): Booking => {
-  if (!b) return {} as Booking;
+const parseBooking = (id: string, data: any): Booking => {
+  if (!data) return { id } as Booking;
 
-  let title = b.title || '';
-  let teamName = b.team_name || b.teamName || '';
-  let ageGroup = b.age_group || b.ageGroup || '';
-  let churchName = b.church_name || b.churchName || '';
-  let requesterEmail = b.requester_email || b.requesterEmail || '';
-  let requesterName = b.requester_name || b.requesterName || '';
-  let teamMembers = b.team_members || b.teamMembers;
-  let teammates = b.teammates || [];
-  
-  if (typeof title === 'string' && title.startsWith('{') && title.endsWith('}')) {
-    try {
-      const parsed = JSON.parse(title);
-      title = parsed.t || title;
-      teamName = parsed.tn || teamName;
-      ageGroup = parsed.ag || ageGroup;
-    } catch (e) {
-      // Not JSON, use as-is
-    }
-  }
-
+  // Firestore stores in camelCase directly — no snake_case mapping needed
+  let teamMembers = data.teamMembers;
   if (typeof teamMembers === 'string') {
     try { teamMembers = JSON.parse(teamMembers); } catch { teamMembers = undefined; }
   }
 
+  let teammates = data.teammates || [];
   if (typeof teammates === 'string') {
-    teammates = (teammates as string).split(',').map((s: string) => s.trim()).filter(Boolean);
+    teammates = teammates.split(',').map((s: string) => s.trim()).filter(Boolean);
   }
-  
+
   return {
-    ...b,
     id,
-    title,
-    teamName,
-    ageGroup,
-    churchName,
-    requesterEmail,
-    requesterName,
+    title: data.title || '',
+    requesterName: data.requesterName || '',
+    requesterEmail: data.requesterEmail || '',
+    serviceId: data.serviceId || '',
+    roomId: data.roomId || '',
+    date: data.date || '',
+    startTime: data.startTime || '',
+    endTime: data.endTime || '',
+    status: data.status || 'approved',
+    rejectionReason: data.rejectionReason,
+    churchName: data.churchName || '',
+    teamName: data.teamName || '',
+    ageGroup: data.ageGroup || '',
     teamMembers,
     teammates,
+    createdAt: data.createdAt?.toDate?.()?.toISOString?.() || data.createdAt || new Date().toISOString(),
   };
 };
 
@@ -77,134 +67,144 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Real-time listener — Firestore onSnapshot replaces polling + Supabase channels
   useEffect(() => {
-    setLoading(true);
     const q = query(collection(db, 'bookings'), orderBy('date', 'asc'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const bookingsData = snapshot.docs.map(doc => parseBooking(doc.id, doc.data()));
-      setBookings(bookingsData);
-      setLoading(false);
-    }, (err) => {
-      console.error('Firestore Error:', err);
-      setError(err.message);
-      setLoading(false);
-    });
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const parsed = snapshot.docs.map((d) => parseBooking(d.id, d.data()));
+        setBookings(parsed);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('[BookingsContext] Firestore listener error:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
+  }, []);
+
+  // Manual refresh (mostly unnecessary with onSnapshot, but kept for API compat)
+  const fetchBookings = useCallback(async () => {
+    // onSnapshot handles this automatically — this is a no-op kept for interface compat
   }, []);
 
   const addBooking = useCallback(async (bookingData: any) => {
     try {
       const docData = {
-        title: bookingData.title,
-        requester_name: bookingData.requesterName,
-        requester_email: (bookingData.requesterEmail || '').toLowerCase(),
-        service_id: bookingData.serviceId,
-        room_id: bookingData.roomId,
-        date: bookingData.date,
-        start_time: bookingData.startTime,
-        end_time: bookingData.endTime,
-        church_name: bookingData.churchName,
-        team_name: bookingData.teamName,
-        age_group: bookingData.ageGroup,
-        team_members: bookingData.teamMembers || null,
-        teammates: Array.isArray(bookingData.teammates) ? bookingData.teammates : (bookingData.teammates ? [bookingData.teammates] : []),
+        title: bookingData.title || '',
+        requesterName: bookingData.requesterName || '',
+        requesterEmail: (bookingData.requesterEmail || '').toLowerCase(),
+        serviceId: bookingData.serviceId || '',
+        roomId: bookingData.roomId || '',
+        date: bookingData.date || '',
+        startTime: bookingData.startTime || '',
+        endTime: bookingData.endTime || '',
+        churchName: bookingData.churchName || '',
+        teamName: bookingData.teamName || '',
+        ageGroup: bookingData.ageGroup || '',
+        teamMembers: bookingData.teamMembers || [],
+        teammates: Array.isArray(bookingData.teammates) ? bookingData.teammates : [],
         status: 'approved',
-        createdAt: Timestamp.now(),
+        createdAt: serverTimestamp(),
       };
 
-      const docRef = await addDoc(collection(db, 'bookings'), docData);
-      
+      await addDoc(collection(db, 'bookings'), docData);
+      // onSnapshot will automatically pick up the new document
+
       // Sync to Google Sheets
       const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
       if (webhookUrl) {
-        const newBooking = parseBooking(docRef.id, docData);
         fetch(webhookUrl, {
           method: 'POST',
           body: JSON.stringify({
             action: 'ADD',
-            ...newBooking,
-            members: Array.isArray(bookingData.teamMembers) 
-              ? bookingData.teamMembers.map((m: any) => `${m.name} (${m.id})`).join(', ') 
-              : ''
-          })
-        }).catch(err => console.error('Webhook error:', err));
+            ...docData,
+            members: Array.isArray(bookingData.teamMembers)
+              ? bookingData.teamMembers.map((m: any) => `${m.name} (${m.id})`).join(', ')
+              : '',
+          }),
+        }).catch((err) => console.error('Webhook error:', err));
       }
     } catch (err: any) {
-      console.error('Error adding booking to Firestore:', err);
+      console.error('[BookingsContext] Error adding booking:', err);
       throw err;
     }
   }, []);
 
-  const updateBookingStatus = useCallback(async (id: string, status: BookingStatus, rejectionReason?: string) => {
-    try {
-      const target = bookings.find(b => b.id === id);
-      const docRef = doc(db, 'bookings', id);
-      
-      await updateDoc(docRef, { status, rejectionReason });
+  const updateBookingStatus = useCallback(
+    async (id: string, status: BookingStatus, rejectionReason?: string) => {
+      try {
+        const target = bookings.find((b) => b.id === id);
+        const ref = doc(db, 'bookings', id);
+        await updateDoc(ref, { status, rejectionReason: rejectionReason || null });
+        // onSnapshot will automatically update the list
 
-      // Sync to Google Sheets
-      const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
-      if (webhookUrl && target) {
-        fetch(webhookUrl, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'UPDATE',
-            ...target,
-            status,
-            rejectionReason
-          })
-        }).catch(err => console.error('Webhook error:', err));
+        // Sync to Google Sheets
+        const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
+        if (webhookUrl && target) {
+          fetch(webhookUrl, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'UPDATE', ...target, status, rejectionReason }),
+          }).catch((err) => console.error('Webhook error:', err));
+        }
+      } catch (err: any) {
+        console.error('[BookingsContext] Error updating status:', err);
+        throw err;
       }
-    } catch (err: any) {
-      console.error('Error updating status:', err);
-      throw err;
-    }
-  }, [bookings]);
-
-  const deleteBooking = useCallback(async (id: string) => {
-    try {
-      const target = bookings.find(b => b.id === id);
-      const docRef = doc(db, 'bookings', id);
-      
-      await deleteDoc(docRef);
-
-      // Sync to Google Sheets
-      const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
-      if (webhookUrl && target) {
-        fetch(webhookUrl, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'DELETE',
-            churchName: target.churchName,
-            date: target.date,
-            startTime: target.startTime,
-            requesterName: target.requesterName
-          })
-        }).catch(err => console.error('Webhook error:', err));
-      }
-    } catch (err: any) {
-      console.error('Error deleting booking:', err);
-      throw err;
-    }
-  }, [bookings]);
-
-  const value = useMemo(() => ({
-    bookings,
-    loading,
-    error,
-    addBooking,
-    updateBookingStatus,
-    deleteBooking,
-    refreshBookings: async () => {}, // No-op since we use onSnapshot
-  }), [bookings, loading, error, addBooking, updateBookingStatus, deleteBooking]);
-
-  return (
-    <BookingsContext.Provider value={value}>
-      {children}
-    </BookingsContext.Provider>
+    },
+    [bookings]
   );
+
+  const deleteBooking = useCallback(
+    async (id: string) => {
+      try {
+        const target = bookings.find((b) => b.id === id);
+        const ref = doc(db, 'bookings', id);
+        await deleteDoc(ref);
+        // onSnapshot will automatically remove it from the list
+
+        // Sync to Google Sheets
+        const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
+        if (webhookUrl && target) {
+          fetch(webhookUrl, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'DELETE',
+              churchName: target.churchName,
+              date: target.date,
+              startTime: target.startTime,
+              requesterName: target.requesterName,
+            }),
+          }).catch((err) => console.error('Webhook error:', err));
+        }
+      } catch (err: any) {
+        console.error('[BookingsContext] Error deleting booking:', err);
+        throw err;
+      }
+    },
+    [bookings]
+  );
+
+  const value = useMemo(
+    () => ({
+      bookings,
+      loading,
+      error,
+      addBooking,
+      updateBookingStatus,
+      deleteBooking,
+      refreshBookings: fetchBookings,
+    }),
+    [bookings, loading, error, addBooking, updateBookingStatus, deleteBooking, fetchBookings]
+  );
+
+  return <BookingsContext.Provider value={value}>{children}</BookingsContext.Provider>;
 };
 
 export const useBookingsContext = () => {

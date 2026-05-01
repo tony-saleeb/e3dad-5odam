@@ -6,7 +6,6 @@ import { useBookings } from "@/hooks/useBookings";
 import { useSettings } from "@/hooks/useSettings";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { services, rooms, getChurchColor } from "@/data/initialData";
-import { isSupabaseConfigured } from "@/lib/supabase";
 import { format, startOfWeek, addDays, subDays, isToday, isBefore, isAfter, startOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -97,13 +96,6 @@ export default function WeeklySchedule() {
 
   return (
     <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      
-      {!isSupabaseConfigured && (
-        <div className="bg-red-500 text-white font-bold text-center py-2 text-xs px-4 border-b border-red-600 animate-pulse" dir="rtl">
-          ⚠️ تنبيه: قاعدة بيانات Supabase غير متصلة! يرجى إدخال الرابط (URL) والمفتاح (Anon Key) في ملف .env.local لحفظ الحجوزات بشكل حقيقي.
-        </div>
-      )}
-
       {/* ===== MOBILE VIEW ===== */}
       <div className="lg:hidden" dir="rtl">
         {/* Mobile Header */}

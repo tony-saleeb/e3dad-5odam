@@ -1,20 +1,14 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
 
-export async function GET() {
+// POST: Receive bookings data from the client and generate Excel
+export async function POST(request: NextRequest) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { bookings } = await request.json();
 
-    const { data: bookings, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .order('date', { ascending: true });
-
-    if (error) throw error;
+    if (!bookings || !Array.isArray(bookings)) {
+      return NextResponse.json({ error: 'No bookings data provided' }, { status: 400 });
+    }
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Bookings');
@@ -46,17 +40,15 @@ export async function GET() {
     });
 
     // Populate Data Rows
-    if (bookings && bookings.length > 0) {
-      bookings.forEach((b) => {
-        worksheet.addRow({
-          churchName: b.churchName || '',
-          title: b.title || '',
-          date: b.date || '',
-          period: `${b.startTime} - ${b.endTime}`,
-          teammates: Array.isArray(b.teammates) ? b.teammates.join(' | ') : '',
-        });
+    bookings.forEach((b: any) => {
+      worksheet.addRow({
+        churchName: b.churchName || '',
+        title: b.title || '',
+        date: b.date || '',
+        period: `${b.startTime || ''} - ${b.endTime || ''}`,
+        teammates: Array.isArray(b.teammates) ? b.teammates.join(' | ') : '',
       });
-    }
+    });
 
     // Alignment for all content rows
     worksheet.eachRow((row, rowNumber) => {
@@ -70,7 +62,6 @@ export async function GET() {
     // Generate Buffer
     const buffer = await workbook.xlsx.writeBuffer();
 
-    // Fix UTF-8 encoding assignments
     return new Response(buffer, {
       status: 200,
       headers: {

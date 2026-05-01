@@ -2,9 +2,8 @@
 
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, User } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/firebase';
+import { auth, googleProvider, db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 export interface UserData {
   uid: string;
@@ -38,22 +37,27 @@ async function getUserRole(email: string): Promise<'admin' | 'user' | null> {
 
   // Check if hardcoded admin
   if (ADMIN_EMAILS.includes(lowerEmail)) {
+    console.log('[Auth] Admin from env:', lowerEmail);
     return 'admin';
   }
 
   // Check allowed_users collection in Firestore
   try {
-    const docRef = doc(db, 'allowed_users', lowerEmail);
-    const docSnap = await getDoc(docRef);
+    console.log('[Auth] Checking Firestore for:', lowerEmail);
+    const userDoc = await getDoc(doc(db, 'allowed_users', lowerEmail));
 
-    if (docSnap.exists()) {
-      return docSnap.data().role as 'admin' | 'user';
+    if (!userDoc.exists()) {
+      console.log('[Auth] User not found in allowed_users');
+      return null;
     }
-  } catch (error) {
-    console.error('[Auth] Firestore error:', error);
-  }
 
-  return null;
+    const data = userDoc.data();
+    console.log('[Auth] Found role:', data.role);
+    return data.role as 'admin' | 'user';
+  } catch (err: any) {
+    console.error('[Auth] Firestore error:', err.message);
+    return null;
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

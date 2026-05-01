@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, getDocs, setDoc, deleteDoc, doc } from 'firebase/firestore';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
 
@@ -42,15 +43,16 @@ export default function AdminDashboard() {
   }, [settings]);
 
   const fetchUsers = async () => {
-    if (!isSupabaseConfigured) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('allowed_users')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setAllowedUsers(data || []);
+      const snap = await getDocs(collection(db, 'allowed_users'));
+      const users: AllowedUser[] = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+      })) as AllowedUser[];
+      // Sort by created_at descending
+      users.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+      setAllowedUsers(users);
     } catch (err) {
       console.error('Error fetching allowed users:', err);
     } finally {
@@ -72,18 +74,17 @@ export default function AdminDashboard() {
 
     setAdding(true);
     try {
-      const { error } = await supabase
-        .from('allowed_users')
-        .insert([{ email: newEmail.trim().toLowerCase(), name: newName.trim(), role: newRole }]);
-      if (error) {
-        if (error.code === '23505') setAddError('هذا البريد الإلكتروني مضاف بالفعل');
-        else throw error;
-      } else {
-        setNewEmail('');
-        setNewName('');
-        setNewRole('user');
-        await fetchUsers();
-      }
+      const email = newEmail.trim().toLowerCase();
+      await setDoc(doc(db, 'allowed_users', email), {
+        email,
+        name: newName.trim(),
+        role: newRole,
+        created_at: new Date().toISOString(),
+      });
+      setNewEmail('');
+      setNewName('');
+      setNewRole('user');
+      await fetchUsers();
     } catch (err: any) {
       setAddError(err.message || 'حدث خطأ');
     } finally {
@@ -94,8 +95,7 @@ export default function AdminDashboard() {
   const handleRemoveUser = async (id: string) => {
     setRemovingId(id);
     try {
-      const { error } = await supabase.from('allowed_users').delete().eq('id', id);
-      if (error) throw error;
+      await deleteDoc(doc(db, 'allowed_users', id));
       await fetchUsers();
     } catch (err) {
       console.error('Error removing user:', err);
@@ -104,8 +104,24 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleExportCSV = () => {
-    window.location.href = '/api/export-bookings';
+  const handleExportCSV = async () => {
+    try {
+      const res = await fetch('/api/export-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookings }),
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'church_bookings.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export error:', err);
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -164,12 +180,6 @@ export default function AdminDashboard() {
             {/* USERS TAB */}
             {activeTab === 'users' && (
               <>
-                {!isSupabaseConfigured && (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-sm font-medium">
-                    ⚠️ Supabase غير متصل — لا يمكن إدارة المستخدمين حالياً
-                  </div>
-                )}
-
                 {/* Add user form */}
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
                   <h3 className="font-bold text-slate-800 text-sm">إضافة مستخدم جديد</h3>
@@ -200,7 +210,7 @@ export default function AdminDashboard() {
                   {addError && <p className="text-red-500 text-xs font-bold">{addError}</p>}
                   <button
                     onClick={handleAddUser}
-                    disabled={adding || !isSupabaseConfigured}
+                    disabled={adding}
                     className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm disabled:opacity-50 transition-all"
                   >
                     {adding ? 'جاري الإضافة...' : '+ إضافة'}
