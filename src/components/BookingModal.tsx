@@ -131,6 +131,11 @@ export default function BookingModal() {
           .neq('status', 'rejected')
           .limit(1);
 
+        if (checkError) {
+          console.error('Check error:', checkError);
+          throw new Error('فشل في التحقق من الحجوزات السابقة');
+        }
+
         if (existing && existing.length > 0) {
           toast.error('عذراً، يسمح لكل مستخدم بحجز واحد فقط.');
           setSubmitting(false);
@@ -158,9 +163,9 @@ export default function BookingModal() {
 
       toast.success(`تم تسجيل الحجز بنجاح`);
       closeBookingModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating booking:', error);
-      toast.error('فشل في إنشاء الحجز. يرجى المحاولة مرة أخرى.');
+      toast.error(error.message || 'فشل في إنشاء الحجز. يرجى المحاولة مرة أخرى.');
     } finally {
       setSubmitting(false);
     }
@@ -381,23 +386,67 @@ export default function BookingModal() {
             {/* STEP 3: Review + Confirmation */}
             {step === 3 && (
               <div className="p-4 sm:p-6 space-y-4 animate-fade-in">
-                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-sm">
+                {/* Date/Time Pickers if missing */}
+                {(!formData.date || !formData.startTime) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-4 mb-4">
+                    <p className="text-sm font-bold text-amber-800 flex items-center gap-2">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
+                      يرجى تحديد الموعد:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-amber-700 block mb-1">التاريخ</label>
+                        <input 
+                          type="date" 
+                          value={formData.date}
+                          onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                          className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-amber-700 block mb-1">الفترة الزمنية</label>
+                        <select 
+                          value={`${formData.startTime}|${formData.endTime}`}
+                          onChange={(e) => {
+                            const [start, end] = e.target.value.split('|');
+                            setFormData(prev => ({ ...prev, startTime: start, endTime: end }));
+                          }}
+                          className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        >
+                          <option value="|">اختر فترة...</option>
+                          {timePeriods.map(p => (
+                            <option key={p.id} value={`${p.startTime}|${p.endTime}`}>
+                              {p.label} ({p.startTime} - {p.endTime})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-emerald-600/70">الموعد المختار</p>
-                      <p className="text-sm font-black text-emerald-700">{formData.date}</p>
+                    {errors.startTime && <p className="text-xs text-red-600 font-bold">{errors.startTime}</p>}
+                  </div>
+                )}
+
+                {formData.date && formData.startTime && (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-sm">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-emerald-600/70">الموعد المختار</p>
+                        <p className="text-sm font-black text-emerald-700">{formData.date}</p>
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-emerald-600/70 text-left">الفترة الزمنية</p>
+                      <p className="text-sm font-black text-emerald-700">{formData.startTime} – {formData.endTime}</p>
                     </div>
                   </div>
-                  <div className="text-left">
-                    <p className="text-xs font-bold text-emerald-600/70 text-left">الفترة الزمنية</p>
-                    <p className="text-sm font-black text-emerald-700">{formData.startTime} – {formData.endTime}</p>
-                  </div>
-                </div>
+                )}
 
                 {/* Compact Summary Card */}
                 <div className="bg-slate-50 rounded-3xl p-5 border border-slate-100 shadow-inner">

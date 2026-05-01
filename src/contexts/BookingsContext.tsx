@@ -124,16 +124,34 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (error) throw error;
       
       if (data && data.length > 0) {
-        setBookings(prev => [...prev, parseBooking(data[0])]);
+        const newBooking = parseBooking(data[0]);
+        setBookings(prev => [...prev, newBooking]);
+
+        // Sync to Google Sheets
+        const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
+        if (webhookUrl) {
+          fetch(webhookUrl, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'ADD',
+              ...newBooking,
+              // Flatten members for sheet
+              members: Array.isArray(bookingData.teamMembers) 
+                ? bookingData.teamMembers.map((m: any) => `${m.name} (${m.id})`).join(', ') 
+                : ''
+            })
+          }).catch(err => console.error('Webhook error:', err));
+        }
       }
     } catch (err: any) {
-      console.error('Error adding booking:', err);
+      console.error('Error adding booking to Supabase:', err);
       throw err;
     }
   }, []);
 
   const updateBookingStatus = useCallback(async (id: string, status: BookingStatus, rejectionReason?: string) => {
     try {
+      const target = bookings.find(b => b.id === id);
       const { error } = await supabase
         .from('bookings')
         .update({ status, rejectionReason })
@@ -142,14 +160,29 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (error) throw error;
       
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status, rejectionReason } : b));
+
+      // Sync to Google Sheets
+      const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
+      if (webhookUrl && target) {
+        fetch(webhookUrl, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'UPDATE',
+            ...target,
+            status,
+            rejectionReason
+          })
+        }).catch(err => console.error('Webhook error:', err));
+      }
     } catch (err: any) {
       console.error('Error updating status:', err);
       throw err;
     }
-  }, []);
+  }, [bookings]);
 
   const deleteBooking = useCallback(async (id: string) => {
     try {
+      const target = bookings.find(b => b.id === id);
       const { error } = await supabase
         .from('bookings')
         .delete()
@@ -158,11 +191,26 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (error) throw error;
       
       setBookings(prev => prev.filter(b => b.id !== id));
+
+      // Sync to Google Sheets
+      const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
+      if (webhookUrl && target) {
+        fetch(webhookUrl, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'DELETE',
+            churchName: target.churchName,
+            date: target.date,
+            startTime: target.startTime,
+            requesterName: target.requesterName
+          })
+        }).catch(err => console.error('Webhook error:', err));
+      }
     } catch (err: any) {
       console.error('Error deleting booking:', err);
       throw err;
     }
-  }, []);
+  }, [bookings]);
 
   const value = useMemo(() => ({
     bookings,
