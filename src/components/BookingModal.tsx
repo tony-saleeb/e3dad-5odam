@@ -7,7 +7,6 @@ import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { timePeriods, churches, getChurchColor } from '@/data/initialData';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import InlineCalendar from './InlineCalendar';
 import { useToast } from './Toast';
 import { TeamMember } from '@/types';
 
@@ -352,100 +351,65 @@ export default function BookingModal() {
               </div>
             )}
 
-            {/* STEP 3: Review + Date/Time Selection */}
+            {/* STEP 3: Review + Confirmation */}
             {step === 3 && (
-              <div className="p-4 sm:p-6 space-y-6 animate-fade-in">
-
-                {/* Date & Time Picker */}
-                <div className="space-y-4">
-                  <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
-                    <span className="w-2 h-5 rounded-full bg-emerald-500 inline-block" />
-                    اختر التاريخ والفترة الزمنية
-                  </h3>
-
-                  <InlineCalendar
-                    selectedDate={formData.date}
-                    onSelectDate={(date) => setFormData({ ...formData, date })}
-                  />
-
-                  {/* Time Periods */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {timePeriods.map((period) => {
-                      const isSelected = formData.startTime === period.startTime;
-                      const isBooked = formData.date ? isPeriodBooked(formData.date, period.startTime, period.endTime) : false;
-                      return (
-                        <button
-                          key={period.id}
-                          type="button"
-                          disabled={isBooked}
-                          onClick={() => {
-                            if (!isBooked) {
-                              setFormData({ ...formData, startTime: period.startTime, endTime: period.endTime });
-                              setErrors({ ...errors, startTime: '' });
-                            }
-                          }}
-                          className={`p-4 rounded-2xl border-2 text-center transition-all ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-50 shadow-md shadow-emerald-100'
-                              : isBooked
-                              ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed'
-                              : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/30 cursor-pointer'
-                          }`}
-                        >
-                          <p className={`font-black text-sm ${isSelected ? 'text-emerald-700' : isBooked ? 'text-slate-400' : 'text-slate-700'}`}>
-                            {period.label}
-                          </p>
-                          <p className={`text-xs mt-0.5 ${isSelected ? 'text-emerald-600' : 'text-slate-400'}`}>
-                            {period.startTime} – {period.endTime}
-                          </p>
-                          {isBooked && <p className="text-xs text-red-400 font-bold mt-1">محجوز</p>}
-                        </button>
-                      );
-                    })}
+              <div className="p-4 sm:p-6 space-y-4 animate-fade-in">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-sm">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-emerald-600/70">الموعد المختار</p>
+                      <p className="text-sm font-black text-emerald-700">{formData.date}</p>
+                    </div>
                   </div>
-                  {errors.startTime && <p className="text-red-500 text-xs font-bold">{errors.startTime}</p>}
-                  {errors.date && <p className="text-red-500 text-xs font-bold">{errors.date}</p>}
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-emerald-600/70 text-left">الفترة الزمنية</p>
+                    <p className="text-sm font-black text-emerald-700">{formData.startTime} – {formData.endTime}</p>
+                  </div>
                 </div>
 
-                {/* Summary */}
-                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                  <h3 className="text-base font-black text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-200 pb-3">
+                {/* Compact Summary Card */}
+                <div className="bg-slate-50 rounded-3xl p-5 border border-slate-100 shadow-inner">
+                  <h3 className="text-base font-black text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-200/60 pb-3">
                     <span className="w-2 h-5 rounded-full bg-teal-500 inline-block" />
-                    ملخص الحجز
+                    مراجعة بيانات الحجز
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
                     {[
                       { label: 'الكنيسة', value: formData.churchName },
                       { label: 'المشروع', value: formData.title },
                       { label: 'الفريق', value: formData.teamName },
-                      { label: 'المرحلة العمرية', value: formData.ageGroup },
+                      { label: 'المرحلة', value: formData.ageGroup },
                     ].map(({ label, value }) => (
                       <div key={label}>
-                        <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">{label}</span>
-                        <span className="text-slate-800 font-black">{value || '—'}</span>
+                        <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wide mb-0.5">{label}</span>
+                        <span className="text-slate-800 font-black text-sm">{value || '—'}</span>
                       </div>
                     ))}
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">التاريخ</span>
-                      <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200/50 px-2 py-1 rounded-lg inline-block text-xs mt-1">{formData.date || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider">الفترة</span>
-                      <span className="text-teal-700 font-bold bg-teal-50 border border-teal-200/50 px-2 py-1 rounded-lg inline-block text-xs mt-1">
-                        {formData.startTime ? `${formData.startTime} – ${formData.endTime}` : '—'}
-                      </span>
-                    </div>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-slate-200">
-                    <span className="text-xs font-bold text-slate-400 block uppercase tracking-wider mb-2">الأعضاء ({formData.teamMembers.length})</span>
+
+                  <div className="mt-5 pt-4 border-t border-slate-200/60">
+                    <span className="text-[11px] font-bold text-slate-400 block mb-2 uppercase tracking-wide">أعضاء الفريق ({formData.teamMembers.length})</span>
                     <div className="flex flex-wrap gap-1.5">
                       {formData.teamMembers.map((m, i) => (
-                        <span key={i} className="bg-white border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm">
-                          {m.name} <span className="text-slate-400">({m.id})</span>
-                        </span>
+                        <div key={i} className="bg-white border border-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-xs flex items-center gap-1.5">
+                          <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                          {m.name}
+                        </div>
                       ))}
                     </div>
                   </div>
+                </div>
+                
+                <div className="px-2">
+                  <p className="text-[11px] text-slate-400 text-center leading-relaxed font-medium">
+                    يرجى مراجعة البيانات جيداً قبل التأكيد. سيتم تسجيل الحجز فور الضغط على الزر أدناه.
+                  </p>
                 </div>
               </div>
             )}

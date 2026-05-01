@@ -153,7 +153,9 @@ export function useBookings() {
           setBookings((prev) => [...prev, parseBooking(data[0])]);
         }
       } catch (err: any) {
-        console.error('Error adding booking to Supabase:', err);
+        console.error('Error adding booking to Supabase:', err.message || err);
+        if (err.details) console.error('Error details:', err.details);
+        if (err.hint) console.error('Error hint:', err.hint);
         throw err;
       }
     },
