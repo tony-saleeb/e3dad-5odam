@@ -87,7 +87,7 @@ export const rooms: Room[] = [
 ];
 
 export const churches = [
-  'العذراء بالفجالة',
+  'اعداد خدام كنائس وسط القاهرة',
   'العذراء بحارة زويلة',
   'العذراء بحارة الروم',
   'العذراء بجاردن سيتى',
@@ -100,7 +100,7 @@ export const churches = [
   'مارجرجس بالقللى'
 ];
 export const churchColorMap: Record<string, { hex: string, bg: string, text: string, border: string, badge: string, gradient: string }> = {
-  'العذراء بالفجالة': { 
+  'اعداد خدام كنائس وسط القاهرة': { 
     hex: '#EF4444', 
     bg: 'bg-red-500', 
     text: 'text-white', 

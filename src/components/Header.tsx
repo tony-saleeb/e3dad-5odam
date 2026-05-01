@@ -54,10 +54,8 @@ export default function Header() {
           <div className="flex-1 min-w-0 flex items-center justify-between relative">
             {/* Right: Brand Group */}
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shrink-0">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shrink-0">
+                <img src="/church-logo.png" alt="Logo" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-800">جدول الحجوزات</h1>
@@ -138,25 +136,6 @@ export default function Header() {
                       )}
 
                       <div className="border-t border-slate-100 my-1" />
-                      
-                      {/* Active Booking status for users */}
-                      {!isAdmin && user?.email && (
-                        <div className="px-5 py-3 bg-slate-50/50">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">حالتك الحالية</p>
-                          {userAlreadyBooked ? (
-                            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                              <p className="text-xs font-bold text-emerald-800">لديك حجز نشط بالفعل ✅</p>
-                              <p className="text-[10px] text-emerald-600 mt-1">يجب حذف الحجز الحالي لتتمكن من حجز موعد جديد.</p>
-                            </div>
-                          ) : (
-                            <div className="p-3 bg-slate-100 rounded-xl border border-slate-200">
-                              <p className="text-xs font-bold text-slate-500">ليس لديك حجوزات حالياً ℹ️</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="border-t border-slate-100 my-1" />
 
                       <button
                         onClick={handleSignOut}
@@ -184,10 +163,8 @@ export default function Header() {
       <div className="lg:hidden">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+            <div className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
+              <img src="/church-logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-base font-bold text-gray-800">جدول الحجوزات</h1>

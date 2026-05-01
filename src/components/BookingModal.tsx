@@ -123,12 +123,11 @@ export default function BookingModal() {
     setSubmitting(true);
     try {
       // 2. Server-side double check (secure)
-      const userEmail = user?.email?.trim().toLowerCase();
-      if (!isAdmin && userEmail) {
+      if (!isAdmin && user?.email) {
         const { data: existing, error: checkError } = await supabase
           .from('bookings')
           .select('id')
-          .ilike('requesterEmail', userEmail)
+          .ilike('requesterEmail', user.email)
           .neq('status', 'rejected')
           .limit(1);
 
@@ -153,7 +152,7 @@ export default function BookingModal() {
         churchName: formData.churchName,
         teamName: formData.teamName,
         ageGroup: formData.ageGroup,
-        teammates: formData.teamMembers.map(m => m.name), // legacy compat
+        teammates: formData.teamMembers.map(m => m.name),
         teamMembers: formData.teamMembers,
       });
 

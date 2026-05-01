@@ -14,7 +14,7 @@ export default function SignInPage() {
         {/* Background Image */}
         <img 
           src="/church-logo.png" 
-          alt="كنيسة السيدة العذراء مريم بالفجالة" 
+          alt="اعداد خدام كنائس وسط القاهرة" 
           className="absolute inset-0 w-full h-full object-cover"
         />
         
@@ -26,11 +26,9 @@ export default function SignInPage() {
           <div className="space-y-4">
             <div className="w-16 h-1 bg-white/60 rounded-full" />
             <h2 className="text-4xl font-bold leading-tight">
-              كنيسة السيدة العذراء مريم
+              اعداد خدام كنائس وسط القاهرة
             </h2>
-            <p className="text-xl text-white/80 font-light">
-              بالفجالة
-            </p>
+
             <p className="text-white/60 text-sm mt-6 max-w-md">
               نظام حجز القاعات والخدمات الكنسية
             </p>
@@ -56,7 +54,7 @@ export default function SignInPage() {
             <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg">
               <img 
                 src="/church-logo.png" 
-                alt="كنيسة السيدة العذراء مريم بالفجالة" 
+                alt="اعداد خدام كنائس وسط القاهرة" 
                 className="w-full h-full object-cover"
               />
             </div>
@@ -147,7 +145,7 @@ export default function SignInPage() {
 
           {/* Footer */}
           <p className="text-center text-xs text-gray-400 mt-8">
-            © 2026 كنيسة السيدة العذراء مريم بالفجالة
+            © 2026 اعداد خدام كنائس وسط القاهرة
           </p>
         </div>
       </div>
