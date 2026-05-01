@@ -3,16 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBookings } from '@/hooks/useBookings';
+import { useSettings } from '@/hooks/useSettings';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
-import { timePeriods, churches, getChurchColor } from '@/data/initialData';
+import { churches, getChurchColor } from '@/data/initialData';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { useToast } from './Toast';
 import { TeamMember } from '@/types';
 
 export default function BookingModal() {
-  const { user } = useAuth();
-  const { addBooking, isPeriodBooked } = useBookings();
+  const { isAdmin, user } = useAuth();
+  const { settings } = useSettings();
+  const { timePeriods } = settings;
+  const { addBooking, isPeriodBooked, hasUserAlreadyBooked } = useBookings();
   const {
     isBookingModalOpen,
     closeBookingModal,
@@ -109,6 +112,13 @@ export default function BookingModal() {
 
   const handleSubmit = async () => {
     if (!validateStep3()) return;
+
+    // Check if user already booked (Admins are exempt)
+    if (!isAdmin && user?.email && hasUserAlreadyBooked(user.email)) {
+      toast.error('عذراً، يسمح لكل مستخدم بحجز واحد فقط.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const primaryLeader = formData.teamMembers[0]?.name || user?.displayName || 'مجهول';

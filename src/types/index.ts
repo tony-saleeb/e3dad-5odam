@@ -45,10 +45,18 @@ export interface TimePeriod {
   endTime: string;   // HH:MM format
 }
 
-// CHURCH ADAPTATION: Team member with name + ID
 export interface TeamMember {
   name: string;
   id: string; // National ID or church ID
+}
+
+export interface AppSettings {
+  timePeriods: TimePeriod[];
+  bookingRange: {
+    startMonth: number; // 0-indexed
+    endMonth: number;   // 0-indexed
+    allowedDays: number[]; // [0,1,2,3]
+  };
 }
 
 export interface Booking {

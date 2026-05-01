@@ -1,5 +1,6 @@
 'use client';
 
+import { useSettings } from '@/hooks/useSettings';
 import { useState, useMemo } from 'react';
 import {
   format,
@@ -18,8 +19,6 @@ import {
   startOfDay,
 } from 'date-fns';
 import { ar } from 'date-fns/locale';
-// CHURCH ADAPTATION: Import date range and allowed days
-import { ALLOWED_DAYS, getDateRange } from '@/data/initialData';
 
 interface InlineCalendarProps {
   selectedDate: string; // Now treats as single date string
@@ -30,6 +29,10 @@ interface InlineCalendarProps {
 const dayNames = ['أ', 'ث', 'ث', 'ر', 'خ', 'ج', 'س'];
 
 export default function InlineCalendar({ selectedDate, onSelectDate, error }: InlineCalendarProps) {
+  const { settings, loading } = useSettings();
+  const { bookingRange } = settings;
+  const { startMonth, endMonth, allowedDays } = bookingRange;
+
   // CHURCH ADAPTATION: Enforce a single date selection
   const selectedDates = useMemo(() => {
     if (!selectedDate) return [];
@@ -37,7 +40,11 @@ export default function InlineCalendar({ selectedDate, onSelectDate, error }: In
     return [selectedDate];
   }, [selectedDate]);
 
-  const dateRange = useMemo(() => getDateRange(), []);
+  const year = new Date().getFullYear();
+  const dateRange = useMemo(() => ({
+    start: new Date(year, startMonth, 1),
+    end: new Date(year, endMonth, 30),
+  }), [year, startMonth, endMonth]);
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     if (selectedDates.length > 0 && selectedDates[0]) {
@@ -78,7 +85,7 @@ export default function InlineCalendar({ selectedDate, onSelectDate, error }: In
   const isDayDisabled = (day: Date) => {
     const dayOfWeek = day.getDay();
     const dayStart = startOfDay(day);
-    if (!ALLOWED_DAYS.includes(dayOfWeek)) return true;
+    if (!allowedDays.includes(dayOfWeek)) return true;
     if (isBefore(dayStart, startOfDay(dateRange.start))) return true;
     if (isAfter(dayStart, startOfDay(dateRange.end))) return true;
     return false;

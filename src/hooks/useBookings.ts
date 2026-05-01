@@ -251,5 +251,8 @@ export function useBookings() {
     getPendingBookings,
     getUserBookings,
     isPeriodBooked,
+    hasUserAlreadyBooked: (email: string) => {
+      return bookings.some(b => b.requesterEmail === email && b.status !== 'rejected');
+    }
   };
 }

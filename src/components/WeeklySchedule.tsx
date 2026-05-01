@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBookings } from "@/hooks/useBookings";
+import { useSettings } from "@/hooks/useSettings";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
-import { services, rooms, timePeriods, ALLOWED_DAYS, getChurchColor } from "@/data/initialData";
+import { services, rooms, getChurchColor } from "@/data/initialData";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { format, startOfWeek, addDays, subDays, isToday, isBefore, isAfter, startOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -14,7 +15,13 @@ const dayNamesFull = ["الأحد", "الاثنين", "الثلاثاء", "ال�
 
 export default function WeeklySchedule() {
   const { user, canSeePending } = useAuth();
-  const { bookings, loading } = useBookings();
+  const { bookings, loading: bookingsLoading } = useBookings();
+  const { settings, loading: settingsLoading } = useSettings();
+  
+  const { timePeriods, bookingRange } = settings;
+  const { allowedDays } = bookingRange;
+  
+  const loading = bookingsLoading || settingsLoading;
   const {
     currentMonth,
     setCurrentMonth,
@@ -52,7 +59,7 @@ export default function WeeklySchedule() {
     if (!user) return;
     
     // CHURCH ADAPTATION: Disable booking on non-allowed days
-    if (!ALLOWED_DAYS.includes(date.getDay())) return;
+    if (!allowedDays.includes(date.getDay())) return;
     
     setSelectedDate(format(date, "yyyy-MM-dd"));
     if (startTime) setSelectedStartTime(startTime);
@@ -121,7 +128,7 @@ export default function WeeklySchedule() {
             {weekDays.map((day, index) => {
               const isSelected = index === mobileSelectedDayIndex;
               const isDayToday = isToday(day);
-              const isAllowed = ALLOWED_DAYS.includes(day.getDay());
+              const isAllowed = allowedDays.includes(day.getDay());
               const dayHasBooking = getBookingsForDay(day).length > 0;
               
               return (
@@ -160,7 +167,7 @@ export default function WeeklySchedule() {
           {/* CHURCH ADAPTATION: Showing the 3 periods in mobile view */}
           {timePeriods.map((period) => {
             const booking = mobileBookings.find(b => b.startTime === period.startTime);
-            const isAllowed = ALLOWED_DAYS.includes(mobileSelectedDay.getDay());
+            const isAllowed = allowedDays.includes(mobileSelectedDay.getDay());
             
             if (!isAllowed) return null;
 
@@ -206,7 +213,7 @@ export default function WeeklySchedule() {
               </div>
             );
           })}
-          {!ALLOWED_DAYS.includes(mobileSelectedDay.getDay()) && (
+          {!allowedDays.includes(mobileSelectedDay.getDay()) && (
             <p className="text-center text-gray-400 py-6 text-sm">هذا اليوم غير متاح للحجز</p>
           )}
         </div>
@@ -244,7 +251,7 @@ export default function WeeklySchedule() {
           {/* Day Rows */}
           <div className="flex flex-col gap-3">
             {weekDays.map((day, idx) => {
-              const isAllowed = ALLOWED_DAYS.includes(day.getDay());
+              const isAllowed = allowedDays.includes(day.getDay());
               const dayBookings = getBookingsForDay(day);
               return (
                 <div key={idx} className={`flex gap-4 items-center p-2 rounded-2xl transition-all ${isToday(day) ? 'bg-emerald-500/[0.04] border border-emerald-200/50 shadow-md shadow-emerald-500/[0.02]' : 'bg-transparent'} ${!isAllowed ? 'opacity-40' : ''}`}>

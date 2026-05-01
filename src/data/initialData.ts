@@ -213,11 +213,11 @@ export const timePeriods: TimePeriod[] = [
 // CHURCH ADAPTATION: Allowed days of week (0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday)
 export const ALLOWED_DAYS = [0, 1, 2, 3]; // Sunday through Wednesday
 
-// CHURCH ADAPTATION: Date range restriction (July 1 - September 30 of current year)
-export const getDateRange = () => {
+// CHURCH ADAPTATION: Date range restriction
+export const getDateRange = (startMonth = 6, endMonth = 8) => {
   const year = new Date().getFullYear();
   return {
-    start: new Date(year, 6, 1),  // July 1 (month is 0-indexed)
-    end: new Date(year, 8, 30),   // September 30
+    start: new Date(year, startMonth, 1),
+    end: new Date(year, endMonth, 30),
   };
 };

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useBookings } from '@/hooks/useBookings';
+import { useSettings } from '@/hooks/useSettings';
 
 interface AllowedUser {
   id: string;
@@ -18,10 +19,11 @@ export default function AdminDashboard() {
   const { user, isAdmin } = useAuth();
   const { isAdminDashboardOpen, closeAdminDashboard } = useSchedulerStore();
   const { bookings } = useBookings();
+  const { settings, updateSettings } = useSettings();
 
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'bookings'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'settings'>('users');
 
   // Add user form
   const [newEmail, setNewEmail] = useState('');
@@ -30,6 +32,14 @@ export default function AdminDashboard() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  // Settings local state for editing
+  const [editingSettings, setEditingSettings] = useState(settings);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  useEffect(() => {
+    setEditingSettings(settings);
+  }, [settings]);
 
   const fetchUsers = async () => {
     if (!isSupabaseConfigured) return;
@@ -98,6 +108,21 @@ export default function AdminDashboard() {
     window.location.href = '/api/export-bookings';
   };
 
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      await updateSettings('time_periods', editingSettings.timePeriods);
+      await updateSettings('booking_range', editingSettings.bookingRange);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+  const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+
   if (!isAdminDashboardOpen || !isAdmin) return null;
 
   return (
@@ -111,25 +136,26 @@ export default function AdminDashboard() {
           <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 shrink-0 bg-gradient-to-r from-emerald-600 to-teal-600 flex justify-between items-center text-white">
             <div>
               <h2 className="text-xl font-bold">لوحة التحكم</h2>
-              <p className="text-sm text-white/80 mt-0.5">إدارة المستخدمين والحجوزات</p>
+              <p className="text-sm text-white/80 mt-0.5">إدارة المستخدمين والحجوزات والإعدادات</p>
             </div>
             <button onClick={closeAdminDashboard} className="text-2xl font-bold hover:text-emerald-100 transition-all w-8 h-8 flex items-center justify-center">&times;</button>
           </div>
 
           {/* Tabs */}
           <div className="flex border-b border-gray-100 shrink-0 bg-gray-50">
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`flex-1 py-3 text-sm font-bold transition-all ${activeTab === 'users' ? 'text-emerald-600 border-b-2 border-emerald-500 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              👥 المستخدمون المصرح لهم
-            </button>
-            <button
-              onClick={() => setActiveTab('bookings')}
-              className={`flex-1 py-3 text-sm font-bold transition-all ${activeTab === 'bookings' ? 'text-emerald-600 border-b-2 border-emerald-500 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              📅 سجل الحجوزات
-            </button>
+            {[
+              { id: 'users', label: '👥 المستخدمون' },
+              { id: 'bookings', label: '📅 سجل الحجوزات' },
+              { id: 'settings', label: '⚙️ الإعدادات' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex-1 py-3 text-sm font-bold transition-all ${activeTab === tab.id ? 'text-emerald-600 border-b-2 border-emerald-500 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* Content */}
@@ -282,6 +308,171 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </>
+            )}
+
+            {/* SETTINGS TAB */}
+            {activeTab === 'settings' && (
+              <div className="space-y-8 animate-fade-in">
+                <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                  <div>
+                    <h3 className="font-black text-slate-800">إعدادات النظام</h3>
+                    <p className="text-xs text-slate-500">تحكم في مواعيد الحجز والفترات الزمنية</p>
+                  </div>
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={savingSettings}
+                    className="px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-lg shadow-emerald-200 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {savingSettings ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Months Selection */}
+                  <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-4">
+                    <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                      <span className="w-2 h-5 rounded-full bg-blue-500" />
+                      فترة الحجز (الشهور)
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 block mb-1.5">من شهر</label>
+                        <select
+                          value={editingSettings.bookingRange.startMonth}
+                          onChange={e => setEditingSettings({
+                            ...editingSettings,
+                            bookingRange: { ...editingSettings.bookingRange, startMonth: parseInt(e.target.value) }
+                          })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                        >
+                          {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 block mb-1.5">إلى شهر</label>
+                        <select
+                          value={editingSettings.bookingRange.endMonth}
+                          onChange={e => setEditingSettings({
+                            ...editingSettings,
+                            bookingRange: { ...editingSettings.bookingRange, endMonth: parseInt(e.target.value) }
+                          })}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                        >
+                          {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Days Selection */}
+                  <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-4">
+                    <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                      <span className="w-2 h-5 rounded-full bg-purple-500" />
+                      الأيام المتاحة للحجز
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {dayNames.map((day, i) => {
+                        const isSelected = editingSettings.bookingRange.allowedDays.includes(i);
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              const newDays = isSelected
+                                ? editingSettings.bookingRange.allowedDays.filter(d => d !== i)
+                                : [...editingSettings.bookingRange.allowedDays, i].sort();
+                              setEditingSettings({
+                                ...editingSettings,
+                                bookingRange: { ...editingSettings.bookingRange, allowedDays: newDays }
+                              });
+                            }}
+                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                              isSelected ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-400'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Time Periods */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-4">
+                  <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                    <span className="w-2 h-5 rounded-full bg-emerald-500" />
+                    الفترات الزمنية
+                  </h4>
+                  <div className="space-y-3">
+                    {editingSettings.timePeriods.map((period, idx) => (
+                      <div key={period.id} className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm items-end">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 block mb-1">اسم الفترة</label>
+                          <input
+                            type="text"
+                            value={period.label}
+                            onChange={e => {
+                              const newPeriods = [...editingSettings.timePeriods];
+                              newPeriods[idx].label = e.target.value;
+                              setEditingSettings({ ...editingSettings, timePeriods: newPeriods });
+                            }}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 block mb-1">من</label>
+                            <input
+                              type="text"
+                              value={period.startTime}
+                              onChange={e => {
+                                const newPeriods = [...editingSettings.timePeriods];
+                                newPeriods[idx].startTime = e.target.value;
+                                setEditingSettings({ ...editingSettings, timePeriods: newPeriods });
+                              }}
+                              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:border-emerald-500 outline-none"
+                              placeholder="6:00 PM"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 block mb-1">إلى</label>
+                            <input
+                              type="text"
+                              value={period.endTime}
+                              onChange={e => {
+                                const newPeriods = [...editingSettings.timePeriods];
+                                newPeriods[idx].endTime = e.target.value;
+                                setEditingSettings({ ...editingSettings, timePeriods: newPeriods });
+                              }}
+                              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:border-emerald-500 outline-none"
+                              placeholder="7:30 PM"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const newPeriods = editingSettings.timePeriods.filter((_, i) => i !== idx);
+                            setEditingSettings({ ...editingSettings, timePeriods: newPeriods });
+                          }}
+                          className="h-10 text-red-500 hover:bg-red-50 rounded-xl text-xs font-bold transition-all border border-transparent hover:border-red-100"
+                        >
+                          حذف الفترة
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => {
+                        const newId = `period-${editingSettings.timePeriods.length + 1}`;
+                        const newPeriods = [...editingSettings.timePeriods, { id: newId, label: 'فترة جديدة', startTime: '12:00 PM', endTime: '1:30 PM' }];
+                        setEditingSettings({ ...editingSettings, timePeriods: newPeriods });
+                      }}
+                      className="w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all text-xs font-bold"
+                    >
+                      + إضافة فترة زمنية جديدة
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>

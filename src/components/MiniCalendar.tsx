@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useBookings } from '@/hooks/useBookings';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/hooks/useSettings';
 import {
   format,
   startOfMonth,
@@ -24,13 +25,16 @@ import {
   startOfDay,
 } from 'date-fns';
 import { ar } from 'date-fns/locale';
-// CHURCH ADAPTATION: Import restrictions
-import { ALLOWED_DAYS, getDateRange, getChurchColor, timePeriods } from '@/data/initialData';
+import { getChurchColor } from '@/data/initialData';
 
 export default function MiniCalendar() {
   const { bookings } = useBookings();
   const { canSeePending } = useAuth();
+  const { settings, loading: settingsLoading } = useSettings();
   const { currentMonth, setCurrentMonth, selectedDate, setSelectedDate } = useSchedulerStore();
+
+  const { timePeriods, bookingRange } = settings;
+  const { startMonth, endMonth, allowedDays } = bookingRange;
   
   // View mode: 'days' or 'months'
   const [viewMode, setViewMode] = useState<'days' | 'months'>('days');
@@ -38,8 +42,11 @@ export default function MiniCalendar() {
   // Prevent hydration mismatch by only checking isToday after mount
   const [isMounted, setIsMounted] = useState(false);
 
-  // CHURCH ADAPTATION: Get date range
-  const dateRange = useMemo(() => getDateRange(), []);
+  const year = new Date().getFullYear();
+  const dateRange = useMemo(() => ({
+    start: new Date(year, startMonth, 1),
+    end: new Date(year, endMonth, 30),
+  }), [year, startMonth, endMonth]);
   
   useEffect(() => {
     setIsMounted(true);
@@ -101,7 +108,7 @@ export default function MiniCalendar() {
   const isDayDisabled = (day: Date) => {
     const dayOfWeek = day.getDay();
     const dayStart = startOfDay(day);
-    if (!ALLOWED_DAYS.includes(dayOfWeek)) return true;
+    if (!allowedDays.includes(dayOfWeek)) return true;
     if (isBefore(dayStart, startOfDay(dateRange.start))) return true;
     if (isAfter(dayStart, startOfDay(dateRange.end))) return true;
     return false;
@@ -128,7 +135,7 @@ export default function MiniCalendar() {
 
   const handleMonthClick = (monthIndex: number) => {
     // CHURCH ADAPTATION: Only allow July(6), August(7), September(8)
-    if (monthIndex < 6 || monthIndex > 8) return;
+    if (monthIndex < startMonth || monthIndex > endMonth) return;
     const newDate = setMonth(currentMonth, monthIndex);
     setCurrentMonth(newDate);
     setViewMode('days');
@@ -257,7 +264,7 @@ export default function MiniCalendar() {
             const isCurrentMonthSelected = getMonth(currentMonth) === index;
             const hasEvents = hasBookingsInMonth(index);
             // CHURCH ADAPTATION: Only allow July(6), August(7), September(8)
-            const isAllowedMonth = index >= 6 && index <= 8;
+            const isAllowedMonth = index >= startMonth && index <= endMonth;
 
             return (
               <button
@@ -288,8 +295,7 @@ export default function MiniCalendar() {
       {/* CHURCH ADAPTATION: Navigate to July 1 instead of today */}
       <button
         onClick={() => {
-          const range = getDateRange();
-          handleDateClick(range.start);
+          handleDateClick(dateRange.start);
           setViewMode('days');
         }}
         className="w-full mt-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
