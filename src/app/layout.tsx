@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { BookingsProvider } from "@/contexts/BookingsContext";
 import { ModalProvider } from "@/contexts/ModalContext";
 
 const cairo = Cairo({
@@ -31,9 +32,11 @@ export default function RootLayout({
     <html lang="ar" dir="rtl">
       <body className={`${cairo.variable} font-sans antialiased bg-slate-50`}>
         <AuthProvider>
-          <ModalProvider>
-            {children}
-          </ModalProvider>
+          <BookingsProvider>
+            <ModalProvider>
+              {children}
+            </ModalProvider>
+          </BookingsProvider>
         </AuthProvider>
       </body>
     </html>

@@ -6,6 +6,7 @@ import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { churches, getChurchColor } from '@/data/initialData';
+import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { useToast } from './Toast';
@@ -113,7 +114,7 @@ export default function BookingModal() {
   const handleSubmit = async () => {
     if (!validateStep3()) return;
 
-    // Check if user already booked (Admins are exempt)
+    // 1. Local check (fast)
     if (!isAdmin && user?.email && hasUserAlreadyBooked(user.email)) {
       toast.error('عذراً، يسمح لكل مستخدم بحجز واحد فقط.');
       return;
@@ -121,6 +122,22 @@ export default function BookingModal() {
 
     setSubmitting(true);
     try {
+      // 2. Server-side double check (secure)
+      if (!isAdmin && user?.email) {
+        const { data: existing, error: checkError } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('requesterEmail', user.email)
+          .neq('status', 'rejected')
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          toast.error('عذراً، يسمح لكل مستخدم بحجز واحد فقط.');
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const primaryLeader = formData.teamMembers[0]?.name || user?.displayName || 'مجهول';
 
       await addBooking({
