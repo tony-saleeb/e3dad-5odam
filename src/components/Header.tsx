@@ -7,8 +7,11 @@ import { useSchedulerStore } from '@/store/useSchedulerStore';
 
 export default function Header() {
   const { user, isAdmin, canCreateBooking, signOut } = useAuth();
-  const { bookings } = useBookings();
+  const { bookings, hasUserAlreadyBooked } = useBookings();
   const { openAdminDashboard, openBookingModal } = useSchedulerStore();
+  
+  const userAlreadyBooked = !isAdmin && user?.email && hasUserAlreadyBooked(user.email);
+  
   const [profileOpen, setProfileOpen] = useState(false);
   const desktopRef = useRef<HTMLDivElement>(null);
   const mobileRef = useRef<HTMLDivElement>(null);
@@ -229,7 +232,7 @@ export default function Header() {
         </div>
 
         <div className="px-4 pb-3 flex items-center gap-2">
-          {canCreateBooking && (
+          {canCreateBooking && !userAlreadyBooked && (
             <button
               onClick={openBookingModal}
               className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 flex items-center justify-center gap-2 shadow"
