@@ -4,9 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import WeeklySchedule from '@/components/WeeklySchedule';
 import MiniCalendar from '@/components/MiniCalendar';
-import UpcomingEvents from '@/components/UpcomingEvents';
 import BookingModal from '@/components/BookingModal';
-import AdminPanel from '@/components/AdminPanel';
 import AdminDashboard from '@/components/AdminDashboard';
 import EventModal from '@/components/EventModal';
 import SignInPage from '@/components/SignInPage';
@@ -56,7 +54,6 @@ export default function Home() {
 
       {/* Modals */}
       <BookingModal />
-      <AdminPanel />
       <AdminDashboard />
       <EventModal 
         booking={selectedEvent}
@@ -69,4 +66,3 @@ export default function Home() {
     </div>
   );
 }
-

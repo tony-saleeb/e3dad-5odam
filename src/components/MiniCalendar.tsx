@@ -16,7 +16,6 @@ import {
   isToday,
   addMonths,
   subMonths,
-  isSameWeek,
   getMonth,
   getYear,
   setMonth,
@@ -30,7 +29,7 @@ import { getChurchColor } from '@/data/initialData';
 export default function MiniCalendar() {
   const { bookings } = useBookings();
   const { canSeePending } = useAuth();
-  const { settings, loading: settingsLoading } = useSettings();
+  const { settings } = useSettings();
   const { currentMonth, setCurrentMonth, selectedDate, setSelectedDate } = useSchedulerStore();
 
   const { timePeriods, bookingRange } = settings;
@@ -49,6 +48,7 @@ export default function MiniCalendar() {
   }), [year, startMonth, endMonth]);
   
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
@@ -100,9 +100,7 @@ export default function MiniCalendar() {
     });
   };
 
-  const isInCurrentWeek = (date: Date) => {
-    return isSameWeek(date, currentMonth, { weekStartsOn: 0 });
-  };
+
 
   // CHURCH ADAPTATION: Check if a day is disabled (Thu-Sat or outside Jul-Sep)
   const isDayDisabled = (day: Date) => {
@@ -228,7 +226,6 @@ export default function MiniCalendar() {
               const isTodayDate = isMounted && isToday(day);
               const dayBooking = getBookingForDay(day);
               const hasEvents = hasBookingsOnDay(day);
-              const isWeekHighlighted = isInCurrentWeek(day) && isCurrentMonth;
               // CHURCH ADAPTATION: Check if day is disabled
               const isDisabled = isDayDisabled(day);
 

@@ -8,24 +8,20 @@ import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { churches, getChurchColor } from '@/data/initialData';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
 import { useToast } from './Toast';
 import { TeamMember } from '@/types';
 
 export default function BookingModal() {
   const { isAdmin, user } = useAuth();
   const { settings } = useSettings();
-  const { timePeriods } = settings;
+  const { timePeriods, teamMemberLimits } = settings;
   const { addBooking, isPeriodBooked, hasUserAlreadyBooked } = useBookings();
   const {
     isBookingModalOpen,
     closeBookingModal,
     selectedDate,
     selectedStartTime,
-    selectedEndTime,
-    setSelectedStartTime,
-    setSelectedEndTime
+    selectedEndTime
   } = useSchedulerStore();
 
   const [step, setStep] = useState(1);
@@ -76,11 +72,11 @@ export default function BookingModal() {
 
   const validateStep2 = () => {
     const newErrors: Record<string, string> = {};
-    if (formData.teamMembers.length < 3) {
-      newErrors.teamMembers = 'يجب إضافة 3 أعضاء على الأقل';
+    if (formData.teamMembers.length < teamMemberLimits.min) {
+      newErrors.teamMembers = `يجب إضافة ${teamMemberLimits.min} أعضاء على الأقل`;
     }
-    if (formData.teamMembers.length > 20) {
-      newErrors.teamMembers = 'الحد الأقصى للمشاركين هو 20';
+    if (formData.teamMembers.length > teamMemberLimits.max) {
+      newErrors.teamMembers = `الحد الأقصى للمشاركين هو ${teamMemberLimits.max}`;
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -91,10 +87,8 @@ export default function BookingModal() {
     if (!formData.date) newErrors.date = 'يرجى اختيار تاريخ';
     if (!formData.startTime) newErrors.startTime = 'يرجى اختيار فترة زمنية';
 
-    if (formData.date && formData.startTime && formData.endTime) {
-      if (isPeriodBooked(formData.date, formData.startTime, formData.endTime)) {
-        newErrors.startTime = 'هذه الفترة محجوزة بالفعل، يرجى اختيار فترة أخرى';
-      }
+    if (formData.date && formData.startTime && formData.endTime && isPeriodBooked(formData.date, formData.startTime, formData.endTime)) {
+      newErrors.startTime = 'هذه الفترة محجوزة بالفعل، يرجى اختيار فترة أخرى';
     }
 
     setErrors(newErrors);
@@ -128,17 +122,17 @@ export default function BookingModal() {
         try {
           const q = query(
             collection(db, 'bookings'),
-            where('requesterEmail', '==', user.email.toLowerCase()),
-            where('status', '!=', 'rejected')
+            where('requesterEmail', '==', user.email.toLowerCase())
           );
           const snap = await getDocs(q);
+          const activeBookings = snap.docs.filter(d => d.data().status !== 'rejected');
 
-          if (!snap.empty) {
+          if (activeBookings.length > 0) {
             toast.error('عذراً، يسمح لكل مستخدم بحجز واحد فقط.');
             setSubmitting(false);
             return;
           }
-        } catch (checkErr: any) {
+        } catch (checkErr) {
           console.error('Check error:', checkErr);
           throw new Error('فشل في التحقق من الحجوزات السابقة');
         }
@@ -164,9 +158,9 @@ export default function BookingModal() {
 
       toast.success(`تم تسجيل الحجز بنجاح`);
       closeBookingModal();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating booking:', error);
-      toast.error(error.message || 'فشل في إنشاء الحجز. يرجى المحاولة مرة أخرى.');
+      toast.error(error instanceof Error ? error.message : 'فشل في إنشاء الحجز. يرجى المحاولة مرة أخرى.');
     } finally {
       setSubmitting(false);
     }
@@ -181,8 +175,8 @@ export default function BookingModal() {
       setErrors({ teamMembers: 'رقم الهوية مطلوب' });
       return;
     }
-    if (formData.teamMembers.length >= 20) {
-      setErrors({ teamMembers: 'الحد الأقصى للمشاركين هو 20' });
+    if (formData.teamMembers.length >= teamMemberLimits.max) {
+      setErrors({ teamMembers: `الحد الأقصى للمشاركين هو ${teamMemberLimits.max}` });
       return;
     }
     setFormData({
@@ -208,10 +202,10 @@ export default function BookingModal() {
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeBookingModal} />
 
       <div className="relative w-full h-[92vh] sm:h-auto sm:max-h-[90vh] md:max-w-4xl transition-all duration-300">
-        <div className="bg-white rounded-t-[1.5rem] sm:rounded-[2rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] flex flex-col h-full overflow-hidden border border-slate-100">
+        <div className="bg-white rounded-t-3xl sm:rounded-4xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] flex flex-col h-full overflow-hidden border border-slate-100">
 
           {/* Header */}
-          <div className="px-4 sm:px-8 py-4 sm:py-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex justify-between items-center shadow-md shadow-emerald-900/10" dir="rtl">
+          <div className="px-4 sm:px-8 py-4 sm:py-5 bg-linear-to-r from-emerald-600 to-teal-700 text-white flex justify-between items-center shadow-md shadow-emerald-900/10" dir="rtl">
             <div>
               <h2 className="text-xl sm:text-2xl font-black tracking-tight">{stepTitles[step - 1]}</h2>
               <div className="flex items-center gap-2 mt-1">
@@ -319,13 +313,13 @@ export default function BookingModal() {
             {step === 2 && (
               <div className="p-4 sm:p-6 space-y-4 animate-fade-in">
                 <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-sm text-emerald-700 font-medium">
-                  أضف أعضاء الفريق مع رقم هوية كل عضو — الحد الأدنى 3 أعضاء.
+                  أضف أعضاء الفريق مع رقم هوية كل عضو — الحد الأدنى {teamMemberLimits.min} أعضاء.
                 </div>
 
                 {/* Add member form */}
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
                   <label className="block text-sm font-bold text-slate-700">
-                    أعضاء الفريق ({formData.teamMembers.length}/20) *
+                    أعضاء الفريق ({formData.teamMembers.length}/{teamMemberLimits.max}) *
                   </label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
@@ -506,7 +500,7 @@ export default function BookingModal() {
             {step < 3 ? (
               <button
                 onClick={handleNext}
-                className="flex-1 py-3.5 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all"
+                className="flex-1 py-3.5 px-6 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all"
               >
                 التالي
               </button>
@@ -514,7 +508,7 @@ export default function BookingModal() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting || !formData.date || !formData.startTime}
-                className="flex-1 py-3.5 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none flex items-center justify-center gap-2"
+                className="flex-1 py-3.5 px-6 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <>

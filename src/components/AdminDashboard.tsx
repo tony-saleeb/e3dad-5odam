@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, getDocs, setDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, setDoc, deleteDoc, doc } from 'firebase/firestore';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
 
@@ -17,7 +17,7 @@ interface AllowedUser {
 }
 
 export default function AdminDashboard() {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { isAdminDashboardOpen, closeAdminDashboard } = useSchedulerStore();
   const { bookings } = useBookings();
   const { settings, updateSettings } = useSettings();
@@ -85,8 +85,8 @@ export default function AdminDashboard() {
       setNewName('');
       setNewRole('user');
       await fetchUsers();
-    } catch (err: any) {
-      setAddError(err.message || 'حدث خطأ');
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'حدث خطأ');
     } finally {
       setAdding(false);
     }
@@ -129,6 +129,7 @@ export default function AdminDashboard() {
     try {
       await updateSettings('time_periods', editingSettings.timePeriods);
       await updateSettings('booking_range', editingSettings.bookingRange);
+      await updateSettings('team_member_limits', editingSettings.teamMemberLimits);
     } catch (err) {
       console.error('Error saving settings:', err);
     } finally {
@@ -149,7 +150,7 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
           {/* Header */}
-          <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 shrink-0 bg-gradient-to-r from-emerald-600 to-teal-600 flex justify-between items-center text-white">
+          <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 shrink-0 bg-linear-to-r from-emerald-600 to-teal-600 flex justify-between items-center text-white">
             <div>
               <h2 className="text-xl font-bold">لوحة التحكم</h2>
               <p className="text-sm text-white/80 mt-0.5">إدارة المستخدمين والحجوزات والإعدادات</p>
@@ -159,14 +160,16 @@ export default function AdminDashboard() {
 
           {/* Tabs */}
           <div className="flex border-b border-gray-100 shrink-0 bg-gray-50">
-            {[
-              { id: 'users', label: '👥 المستخدمون' },
-              { id: 'bookings', label: '📅 سجل الحجوزات' },
-              { id: 'settings', label: '⚙️ الإعدادات' }
-            ].map(tab => (
+            {(
+              [
+                { id: 'users', label: '👥 المستخدمون' },
+                { id: 'bookings', label: '📅 سجل الحجوزات' },
+                { id: 'settings', label: '⚙️ الإعدادات' }
+              ] as const
+            ).map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 py-3 text-sm font-bold transition-all ${activeTab === tab.id ? 'text-emerald-600 border-b-2 border-emerald-500 bg-white' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 {tab.label}
@@ -481,6 +484,47 @@ export default function AdminDashboard() {
                       + إضافة فترة زمنية جديدة
                     </button>
                   </div>
+                </div>
+
+                {/* Team Member Limits */}
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 space-y-4">
+                  <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                    <span className="w-2 h-5 rounded-full bg-amber-500" />
+                    حدود أعضاء الفريق
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 block mb-1.5">الحد الأدنى</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={editingSettings.teamMemberLimits.max}
+                        value={editingSettings.teamMemberLimits.min}
+                        onChange={e => setEditingSettings({
+                          ...editingSettings,
+                          teamMemberLimits: { ...editingSettings.teamMemberLimits, min: Math.max(1, parseInt(e.target.value) || 1) }
+                        })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white focus:ring-2 focus:ring-emerald-500 outline-none text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 block mb-1.5">الحد الأقصى</label>
+                      <input
+                        type="number"
+                        min={editingSettings.teamMemberLimits.min}
+                        max={100}
+                        value={editingSettings.teamMemberLimits.max}
+                        onChange={e => setEditingSettings({
+                          ...editingSettings,
+                          teamMemberLimits: { ...editingSettings.teamMemberLimits, max: Math.max(editingSettings.teamMemberLimits.min, parseInt(e.target.value) || 1) }
+                        })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white focus:ring-2 focus:ring-emerald-500 outline-none text-center"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-400 font-medium">
+                    يجب أن يكون عدد أعضاء الفريق بين {editingSettings.teamMemberLimits.min} و {editingSettings.teamMemberLimits.max} عضو
+                  </p>
                 </div>
               </div>
             )}

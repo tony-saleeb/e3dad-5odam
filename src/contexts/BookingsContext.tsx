@@ -12,14 +12,15 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  DocumentData,
 } from 'firebase/firestore';
-import { Booking, BookingStatus } from '@/types';
+import { Booking, BookingStatus, TeamMember } from '@/types';
 
 interface BookingsContextType {
   bookings: Booking[];
   loading: boolean;
   error: string | null;
-  addBooking: (bookingData: any) => Promise<void>;
+  addBooking: (bookingData: Omit<Booking, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   updateBookingStatus: (id: string, status: BookingStatus, rejectionReason?: string) => Promise<void>;
   deleteBooking: (id: string) => Promise<void>;
   refreshBookings: () => Promise<void>;
@@ -27,7 +28,7 @@ interface BookingsContextType {
 
 const BookingsContext = createContext<BookingsContextType | undefined>(undefined);
 
-const parseBooking = (id: string, data: any): Booking => {
+const parseBooking = (id: string, data: DocumentData): Booking => {
   if (!data) return { id } as Booking;
 
   // Firestore stores in camelCase directly — no snake_case mapping needed
@@ -94,7 +95,7 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // onSnapshot handles this automatically — this is a no-op kept for interface compat
   }, []);
 
-  const addBooking = useCallback(async (bookingData: any) => {
+  const addBooking = useCallback(async (bookingData: Omit<Booking, 'id' | 'createdAt' | 'status'>) => {
     try {
       const docData = {
         title: bookingData.title || '',
@@ -126,12 +127,12 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             action: 'ADD',
             ...docData,
             members: Array.isArray(bookingData.teamMembers)
-              ? bookingData.teamMembers.map((m: any) => `${m.name} (${m.id})`).join(', ')
+              ? bookingData.teamMembers.map((m: TeamMember) => `${m.name} (${m.id})`).join(', ')
               : '',
           }),
         }).catch((err) => console.error('Webhook error:', err));
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('[BookingsContext] Error adding booking:', err);
       throw err;
     }
@@ -153,7 +154,7 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             body: JSON.stringify({ action: 'UPDATE', ...target, status, rejectionReason }),
           }).catch((err) => console.error('Webhook error:', err));
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('[BookingsContext] Error updating status:', err);
         throw err;
       }
@@ -183,7 +184,7 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }),
           }).catch((err) => console.error('Webhook error:', err));
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('[BookingsContext] Error deleting booking:', err);
         throw err;
       }

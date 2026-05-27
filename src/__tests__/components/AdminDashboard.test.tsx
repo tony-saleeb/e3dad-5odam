@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import AdminDashboard from '@/components/AdminDashboard';
 
 // Simple test to verify component exports correctly

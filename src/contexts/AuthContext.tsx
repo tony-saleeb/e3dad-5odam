@@ -54,8 +54,8 @@ async function getUserRole(email: string): Promise<'admin' | 'user' | null> {
     const data = userDoc.data();
     console.log('[Auth] Found role:', data.role);
     return data.role as 'admin' | 'user';
-  } catch (err: any) {
-    console.error('[Auth] Firestore error:', err.message);
+  } catch (err) {
+    console.error('[Auth] Firestore error:', err instanceof Error ? err.message : String(err));
     return null;
   }
 }
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error: any) {
+    } catch {
       setAuthError('فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.');
       setLoading(false);
     }

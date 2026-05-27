@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ExcelJS from 'exceljs';
+import { Booking } from '@/types';
 
 // POST: Receive bookings data from the client and generate Excel
 export async function POST(request: NextRequest) {
@@ -40,20 +41,24 @@ export async function POST(request: NextRequest) {
     });
 
     // Populate Data Rows
-    bookings.forEach((b: any) => {
+    bookings.forEach((b: Booking) => {
+      const membersStr = Array.isArray(b.teamMembers)
+        ? b.teamMembers.map((m) => `${m.name} (${m.id})`).join(' | ')
+        : Array.isArray(b.teammates) ? b.teammates.join(' | ') : '';
+
       worksheet.addRow({
         churchName: b.churchName || '',
         title: b.title || '',
         date: b.date || '',
         period: `${b.startTime || ''} - ${b.endTime || ''}`,
-        teammates: Array.isArray(b.teammates) ? b.teammates.join(' | ') : '',
+        teammates: membersStr,
       });
     });
 
     // Alignment for all content rows
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber > 1) {
-        row.eachCell((cell) => {
+         row.eachCell((cell) => {
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
         });
       }
@@ -69,8 +74,8 @@ export async function POST(request: NextRequest) {
         'Content-Disposition': 'attachment; filename=church_bookings.xlsx',
       },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error generating Excel export:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 });
   }
 }

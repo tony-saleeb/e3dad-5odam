@@ -57,6 +57,10 @@ export interface AppSettings {
     endMonth: number;   // 0-indexed
     allowedDays: number[]; // [0,1,2,3]
   };
+  teamMemberLimits: {
+    min: number;
+    max: number;
+  };
 }
 
 export interface Booking {

@@ -7,7 +7,7 @@ import { useSchedulerStore } from '@/store/useSchedulerStore';
 
 export default function Header() {
   const { user, isAdmin, canCreateBooking, signOut } = useAuth();
-  const { bookings, hasUserAlreadyBooked } = useBookings();
+  const { hasUserAlreadyBooked } = useBookings();
   const { openAdminDashboard, openBookingModal } = useSchedulerStore();
   
   const userAlreadyBooked = !isAdmin && user?.email && hasUserAlreadyBooked(user.email);
@@ -80,11 +80,11 @@ export default function Header() {
                   {user?.photoURL ? (
                     <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full object-cover" />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-black">
+                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-black">
                       {initials}
                     </div>
                   )}
-                  <span className="text-sm font-bold text-slate-700 max-w-[120px] truncate">
+                  <span className="text-sm font-bold text-slate-700 max-w-30 truncate">
                     {user?.displayName || user?.email?.split('@')[0] || 'المستخدم'}
                   </span>
                   <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${profileOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,12 +96,12 @@ export default function Header() {
                 {profileOpen && (
                   <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-200/60 overflow-hidden animate-fade-in z-50">
                     {/* User info */}
-                    <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+                    <div className="px-5 py-4 border-b border-slate-100 bg-linear-to-r from-emerald-50 to-teal-50">
                       <div className="flex items-center gap-3">
                         {user?.photoURL ? (
                           <img src={user.photoURL} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-white shadow" />
                         ) : (
-                          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-black border-2 border-white shadow">
+                          <div className="w-11 h-11 rounded-full bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-sm font-black border-2 border-white shadow">
                             {initials}
                           </div>
                         )}
@@ -180,7 +180,7 @@ export default function Header() {
               {user?.photoURL ? (
                 <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full object-cover border-2 border-emerald-200" />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-black border-2 border-emerald-200">
+                <div className="w-8 h-8 rounded-full bg-linear-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-black border-2 border-emerald-200">
                   {initials}
                 </div>
               )}
@@ -189,7 +189,7 @@ export default function Header() {
             {/* Mobile dropdown */}
             {profileOpen && (
               <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-fade-in z-50">
-                <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+                <div className="px-4 py-3 border-b border-slate-100 bg-linear-to-r from-emerald-50 to-teal-50">
                   <p className="text-sm font-bold text-slate-800 truncate">{user?.displayName || 'المستخدم'}</p>
                   <p className="text-xs text-slate-500 truncate">{user?.email}</p>
                   <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${isAdmin ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>

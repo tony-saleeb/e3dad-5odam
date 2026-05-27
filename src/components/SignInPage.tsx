@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
 
 export default function SignInPage() {
-  const { signInWithGoogle, loading, authError } = useAuth() as any;
+  const { signInWithGoogle, loading, authError } = useAuth();
   const [isHovered, setIsHovered] = useState(false);
 
   return (

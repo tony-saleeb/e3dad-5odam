@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { AppSettings, TimePeriod } from '@/types';
-import { timePeriods as defaultTimePeriods, ALLOWED_DAYS, getDateRange } from '@/data/initialData';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { AppSettings } from '@/types';
+import { timePeriods as defaultTimePeriods, ALLOWED_DAYS } from '@/data/initialData';
 
 const defaultSettings: AppSettings = {
   timePeriods: defaultTimePeriods,
@@ -12,7 +12,11 @@ const defaultSettings: AppSettings = {
     startMonth: 6, // July
     endMonth: 8,   // September
     allowedDays: ALLOWED_DAYS,
-  }
+  },
+  teamMemberLimits: {
+    min: 3,
+    max: 20,
+  },
 };
 
 export function useSettings() {
@@ -57,9 +61,27 @@ export function useSettings() {
       }
     );
 
+    // Listen to team_member_limits document
+    const unsubTML = onSnapshot(
+      doc(db, 'settings', 'team_member_limits'),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setSettings(prev => ({
+            ...prev,
+            teamMemberLimits: data.value || defaultSettings.teamMemberLimits,
+          }));
+        }
+      },
+      (err) => {
+        console.error('Error listening to team_member_limits:', err);
+      }
+    );
+
     return () => {
       unsubTP();
       unsubBR();
+      unsubTML();
     };
   }, []);
 
@@ -67,7 +89,7 @@ export function useSettings() {
     // onSnapshot handles this — kept for interface compat
   }, []);
 
-  const updateSettings = async (key: 'time_periods' | 'booking_range', value: any) => {
+  const updateSettings = async (key: 'time_periods' | 'booking_range' | 'team_member_limits', value: unknown) => {
     try {
       await setDoc(doc(db, 'settings', key), {
         value,

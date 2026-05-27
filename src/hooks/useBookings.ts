@@ -1,8 +1,7 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useBookingsContext } from '@/contexts/BookingsContext';
-import { BookingStatus } from '@/types';
 
 export function useBookings() {
   const {

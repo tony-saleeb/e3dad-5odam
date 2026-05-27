@@ -5,8 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBookings } from "@/hooks/useBookings";
 import { useSettings } from "@/hooks/useSettings";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
-import { services, rooms, getChurchColor } from "@/data/initialData";
-import { format, startOfWeek, addDays, subDays, isToday, isBefore, isAfter, startOfDay } from "date-fns";
+import { getChurchColor } from "@/data/initialData";
+import { format, startOfWeek, addDays, subDays, isToday } from "date-fns";
 import { ar } from "date-fns/locale";
 
 const dayNames = ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
@@ -43,6 +43,7 @@ export default function WeeklySchedule() {
 
   useEffect(() => {
     const dayIndex = currentMonth.getDay();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileSelectedDayIndex(dayIndex);
   }, [currentMonth]);
 
@@ -129,9 +130,9 @@ export default function WeeklySchedule() {
                 <button
                   key={index}
                   onClick={() => setMobileSelectedDayIndex(index)}
-                  className={`flex-1 min-w-[40px] py-2 px-0.5 rounded-xl text-center transition-all active:scale-95 ${
+                  className={`flex-1 min-w-10 py-2 px-0.5 rounded-xl text-center transition-all active:scale-95 ${
                     isSelected ? "bg-slate-800 text-white shadow-lg scale-105" : isDayToday ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-50 text-gray-600"
-                  } ${!isAllowed ? 'opacity-30' : ''}`}
+                  } ${isAllowed ? '' : 'opacity-30'}`}
                 >
                   <p className="text-[9px] sm:text-[10px] font-medium opacity-80">{dayNames[index]}</p>
                   <p className="text-sm sm:text-base font-bold">{format(day, "d")}</p>
@@ -237,7 +238,7 @@ export default function WeeklySchedule() {
             {timePeriods.map(p => (
               <div key={p.id} className="flex-1 p-4 text-center text-sm bg-white rounded-2xl shadow-sm border border-slate-100/80">
                 <span className="block font-black text-slate-800 text-base">{p.label}</span>
-                <span className="block text-xs font-semibold text-emerald-600 mt-1 bg-emerald-50 py-1 px-3 rounded-full inline-block">{p.startTime} - {p.endTime}</span>
+                <span className="inline-block text-xs font-semibold text-emerald-600 mt-1 bg-emerald-50 py-1 px-3 rounded-full">{p.startTime} - {p.endTime}</span>
               </div>
             ))}
           </div>
@@ -248,7 +249,7 @@ export default function WeeklySchedule() {
               const isAllowed = allowedDays.includes(day.getDay());
               const dayBookings = getBookingsForDay(day);
               return (
-                <div key={idx} className={`flex gap-4 items-center p-2 rounded-2xl transition-all ${isToday(day) ? 'bg-emerald-500/[0.04] border border-emerald-200/50 shadow-md shadow-emerald-500/[0.02]' : 'bg-transparent'} ${!isAllowed ? 'opacity-40' : ''}`}>
+                <div key={idx} className={`flex gap-4 items-center p-2 rounded-2xl transition-all ${isToday(day) ? 'bg-emerald-500/4 border border-emerald-200/50 shadow-md shadow-emerald-500/2' : 'bg-transparent'} ${!isAllowed ? 'opacity-40' : ''}`}>
                   <div className={`w-24 p-4 rounded-xl text-center shrink-0 flex flex-col justify-center transition-all ${isToday(day) ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 font-bold scale-105' : 'bg-white border border-slate-100 shadow-sm'}`}>
                     <p className={`text-xs font-black ${isToday(day) ? 'text-emerald-100' : 'text-slate-400'}`}>{dayNames[idx]}</p>
                     <p className="text-2xl font-black mt-0.5">{format(day, "d")}</p>
@@ -257,7 +258,7 @@ export default function WeeklySchedule() {
                   {timePeriods.map((period) => {
                     const booking = dayBookings.find(b => b.startTime === period.startTime);
                     return (
-                      <div key={period.id} className="flex-1 relative flex items-center justify-center min-h-[110px]">
+                      <div key={period.id} className="flex-1 relative flex items-center justify-center min-h-27.5">
                         {booking ? (
                           <div 
                             onClick={() => openEventModal(booking)}
