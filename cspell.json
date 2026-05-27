@@ -6,7 +6,13 @@
     "lineicons",
     "rgba",
     "tailwindcss",
-    "postcss"
+    "postcss",
+    "unsub",
+    "glassmorphism",
+    "FDFF",
+    "FEFF",
+    "FB50",
+    "FE70"
   ],
   "enableFiletypes": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
   "patterns": [

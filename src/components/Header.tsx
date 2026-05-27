@@ -8,7 +8,7 @@ import { useSchedulerStore } from '@/store/useSchedulerStore';
 export default function Header() {
   const { user, isAdmin, canCreateBooking, signOut } = useAuth();
   const { hasUserAlreadyBooked } = useBookings();
-  const { openAdminDashboard, openBookingModal } = useSchedulerStore();
+  const { openAdminDashboard, openBookingModal, setIsEditingTeamDetails } = useSchedulerStore();
   
   const userAlreadyBooked = !isAdmin && user?.email && hasUserAlreadyBooked(user.email);
   
@@ -55,11 +55,11 @@ export default function Header() {
             {/* Right: Brand Group */}
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shrink-0">
-                <img src="/church-logo.png" alt="Logo" className="w-full h-full object-cover" />
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-800">جدول الحجوزات</h1>
-                <p className="text-xs text-gray-400">حجز مرافق الكنيسة</p>
+                <p className="text-xs text-gray-400">حجز ميعاد مناقشة المشاريع</p>
               </div>
             </div>
 
@@ -135,6 +135,26 @@ export default function Header() {
                         </button>
                       )}
 
+                      {!isAdmin && user?.teamDetails && (
+                        <button
+                          onClick={() => {
+                            setIsEditingTeamDetails(true);
+                            setProfileOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-slate-50 transition-all text-right cursor-pointer"
+                        >
+                          <span className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold">تعديل بيانات الفريق</p>
+                            <p className="text-xs text-slate-400">تعديل أسماء الأعضاء والمشروع</p>
+                          </div>
+                        </button>
+                      )}
+
                       <div className="border-t border-slate-100 my-1" />
 
                       <button
@@ -164,7 +184,7 @@ export default function Header() {
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
-              <img src="/church-logo.png" alt="Logo" className="w-full h-full object-cover" />
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-base font-bold text-gray-800">جدول الحجوزات</h1>
@@ -208,6 +228,22 @@ export default function Header() {
                         </svg>
                       </span>
                       إدارة المستخدمين والحجوزات
+                    </button>
+                  )}
+                  {!isAdmin && user?.teamDetails && (
+                    <button
+                      onClick={() => {
+                        setIsEditingTeamDetails(true);
+                        setProfileOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-700 hover:bg-slate-50 transition-all text-right text-sm font-bold cursor-pointer"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                        <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </span>
+                      تعديل بيانات الفريق
                     </button>
                   )}
                   <button

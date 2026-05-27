@@ -8,12 +8,13 @@ import BookingModal from '@/components/BookingModal';
 import AdminDashboard from '@/components/AdminDashboard';
 import EventModal from '@/components/EventModal';
 import SignInPage from '@/components/SignInPage';
+import SetupTeamPage from '@/components/SetupTeamPage';
 import { ToastContainer } from '@/components/Toast';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 
 export default function Home() {
   const { user, loading } = useAuth();
-  const { isEventModalOpen, selectedEvent, closeEventModal } = useSchedulerStore();
+  const { isEventModalOpen, selectedEvent, closeEventModal, isEditingTeamDetails } = useSchedulerStore();
 
   // Show loading spinner while checking auth
   if (loading) {
@@ -30,6 +31,11 @@ export default function Home() {
   // Show sign-in page if not logged in
   if (!user) {
     return <SignInPage />;
+  }
+
+  // Show SetupTeamPage if user is a normal team leader and has not completed team details yet, or is editing them
+  if (user.role === 'user' && (!user.teamDetails || isEditingTeamDetails)) {
+    return <SetupTeamPage />;
   }
 
   return (

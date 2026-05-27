@@ -18,6 +18,7 @@ interface SchedulerStore {
   isAdminDashboardOpen: boolean;
   isEventModalOpen: boolean;
   selectedEvent: Booking | null;
+  isEditingTeamDetails: boolean;
 
   // Actions
   setSelectedDate: (date: string) => void;
@@ -32,6 +33,7 @@ interface SchedulerStore {
   closeAdminDashboard: () => void;
   openEventModal: (event: Booking) => void;
   closeEventModal: () => void;
+  setIsEditingTeamDetails: (val: boolean) => void;
 }
 
 // CHURCH ADAPTATION: Initialize to the start of the allowed date range (July 1)
@@ -50,6 +52,7 @@ export const useSchedulerStore = create<SchedulerStore>((set) => ({
   isAdminDashboardOpen: false,
   isEventModalOpen: false,
   selectedEvent: null,
+  isEditingTeamDetails: false,
 
   // UI Actions
   setSelectedDate: (date) => set({ selectedDate: date }),
@@ -64,4 +67,5 @@ export const useSchedulerStore = create<SchedulerStore>((set) => ({
   closeAdminDashboard: () => set({ isAdminDashboardOpen: false }),
   openEventModal: (event) => set({ isEventModalOpen: true, selectedEvent: event }),
   closeEventModal: () => set({ isEventModalOpen: false, selectedEvent: null }),
+  setIsEditingTeamDetails: (val) => set({ isEditingTeamDetails: val }),
 }));

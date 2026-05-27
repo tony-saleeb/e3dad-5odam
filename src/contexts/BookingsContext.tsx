@@ -120,17 +120,21 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       // Sync to Google Sheets
       const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
-      if (webhookUrl) {
-        fetch(webhookUrl, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'ADD',
-            ...docData,
-            members: Array.isArray(bookingData.teamMembers)
-              ? bookingData.teamMembers.map((m: TeamMember) => `${m.name} (${m.id})`).join(', ')
-              : '',
-          }),
-        }).catch((err) => console.error('Webhook error:', err));
+      if (webhookUrl && webhookUrl.startsWith('http')) {
+        try {
+          fetch(webhookUrl, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'ADD',
+              ...docData,
+              members: Array.isArray(bookingData.teamMembers)
+                ? bookingData.teamMembers.map((m: TeamMember) => `${m.name} (${m.id})`).join(', ')
+                : '',
+            }),
+          }).catch((err) => console.error('Webhook error:', err));
+        } catch (fetchErr) {
+          console.error('Sync Webhook failed:', fetchErr);
+        }
       }
     } catch (err) {
       console.error('[BookingsContext] Error adding booking:', err);
@@ -148,11 +152,15 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         // Sync to Google Sheets
         const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
-        if (webhookUrl && target) {
-          fetch(webhookUrl, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'UPDATE', ...target, status, rejectionReason }),
-          }).catch((err) => console.error('Webhook error:', err));
+        if (webhookUrl && webhookUrl.startsWith('http') && target) {
+          try {
+            fetch(webhookUrl, {
+              method: 'POST',
+              body: JSON.stringify({ action: 'UPDATE', ...target, status, rejectionReason }),
+            }).catch((err) => console.error('Webhook error:', err));
+          } catch (fetchErr) {
+            console.error('Sync Webhook failed:', fetchErr);
+          }
         }
       } catch (err) {
         console.error('[BookingsContext] Error updating status:', err);
@@ -172,17 +180,21 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         // Sync to Google Sheets
         const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
-        if (webhookUrl && target) {
-          fetch(webhookUrl, {
-            method: 'POST',
-            body: JSON.stringify({
-              action: 'DELETE',
-              churchName: target.churchName,
-              date: target.date,
-              startTime: target.startTime,
-              requesterName: target.requesterName,
-            }),
-          }).catch((err) => console.error('Webhook error:', err));
+        if (webhookUrl && webhookUrl.startsWith('http') && target) {
+          try {
+            fetch(webhookUrl, {
+              method: 'POST',
+              body: JSON.stringify({
+                action: 'DELETE',
+                churchName: target.churchName,
+                date: target.date,
+                startTime: target.startTime,
+                requesterName: target.requesterName,
+              }),
+            }).catch((err) => console.error('Webhook error:', err));
+          } catch (fetchErr) {
+            console.error('Sync Webhook failed:', fetchErr);
+          }
         }
       } catch (err) {
         console.error('[BookingsContext] Error deleting booking:', err);

@@ -179,13 +179,13 @@ export default function WeeklySchedule() {
                 <div className="flex justify-between items-center">
                   <div className="flex-1 min-w-0">
                     <h4 className={`font-bold text-sm ${booking ? 'text-white' : 'text-gray-800'}`}>{period.label}</h4>
-                    <p className={`text-xs mt-0.5 ${booking ? 'text-white/80' : 'text-gray-500'}`}>{period.startTime} – {period.endTime}</p>
+                    <p dir="ltr" className={`text-xs mt-0.5 text-right ${booking ? 'text-white/80' : 'text-gray-500'}`}>{period.startTime} – {period.endTime}</p>
                     
                     {/* CHURCH ADAPTATION: Display booking details on slot */}
                     {booking && (
                       <div className="mt-2 space-y-0.5">
-                        <p className="text-sm font-black text-white truncate">{booking.churchName}</p>
-                        <p className="text-xs text-white/80 truncate">المشروع: {booking.title}</p>
+                        <p className="text-sm font-black text-white leading-normal pb-0.5 truncate">{booking.churchName}</p>
+                        <p className="text-xs text-white/80 leading-normal pb-0.5 truncate">المشروع: {booking.title}</p>
                       </div>
                     )}
                   </div>
@@ -238,7 +238,7 @@ export default function WeeklySchedule() {
             {timePeriods.map(p => (
               <div key={p.id} className="flex-1 p-4 text-center text-sm bg-white rounded-2xl shadow-sm border border-slate-100/80">
                 <span className="block font-black text-slate-800 text-base">{p.label}</span>
-                <span className="inline-block text-xs font-semibold text-emerald-600 mt-1 bg-emerald-50 py-1 px-3 rounded-full">{p.startTime} - {p.endTime}</span>
+                <span dir="ltr" className="inline-block text-xs font-semibold text-emerald-600 mt-1 bg-emerald-50 py-1 px-3 rounded-full">{p.startTime} - {p.endTime}</span>
               </div>
             ))}
           </div>
@@ -264,8 +264,8 @@ export default function WeeklySchedule() {
                             onClick={() => openEventModal(booking)}
                             className={`absolute inset-0 p-4 rounded-2xl ${getChurchColor(booking.churchName).gradient} text-white shadow-lg hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all cursor-pointer flex flex-col justify-center border ${getChurchColor(booking.churchName).border} text-right`}
                           >
-                            <p className="font-black text-white text-base tracking-tight leading-snug">{booking.churchName}</p>
-                            <p className="mt-1.5 text-xs text-white/90 font-medium"><strong className="text-white opacity-100 font-bold">المشروع:</strong> {booking.title}</p>
+                            <p className="font-black text-white text-base tracking-tight leading-snug pb-0.5">{booking.churchName}</p>
+                            <p className="mt-1.5 text-xs text-white/90 font-medium pb-0.5"><strong className="text-white opacity-100 font-bold">المشروع:</strong> {booking.title}</p>
                           </div>
                         ) : isAllowed && user && !userAlreadyBooked ? (
                           <button 

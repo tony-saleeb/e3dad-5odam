@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BookingsProvider } from "@/contexts/BookingsContext";
 import { ModalProvider } from "@/contexts/ModalContext";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -18,8 +19,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "جدول حجوزات الكنيسة",
-  description: "إدارة حجوزات مرافق الكنيسة بسهولة. قدّم الطلبات، تابع الموافقات، ونسّق فعاليات الخدمات.",
+  title: "جدول حجوزات المشاريع",
+  description: "ادارة حجوزات مشاريع تخرج اعداد خدام كنائس وسط القاهرة",
   keywords: ["كنيسة", "حجوزات", "جدول", "خدمات", "تقويم"],
 };
 
@@ -31,13 +32,15 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body className={`${cairo.variable} font-sans antialiased bg-slate-50`}>
-        <AuthProvider>
-          <BookingsProvider>
-            <ModalProvider>
-              {children}
-            </ModalProvider>
-          </BookingsProvider>
-        </AuthProvider>
+        <SettingsProvider>
+          <AuthProvider>
+            <BookingsProvider>
+              <ModalProvider>
+                {children}
+              </ModalProvider>
+            </BookingsProvider>
+          </AuthProvider>
+        </SettingsProvider>
       </body>
     </html>
   );

@@ -61,6 +61,7 @@ export interface AppSettings {
     min: number;
     max: number;
   };
+  allowUserCancellation: boolean;
 }
 
 export interface Booking {
