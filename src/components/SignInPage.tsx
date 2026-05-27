@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 export default function SignInPage() {
   const { signInWithGoogle, loading, authError } = useAuth();
-  const [isHovered, setIsHovered] = useState(false);
+  const [, setIsHovered] = useState(false);
 
   return (
     <>
