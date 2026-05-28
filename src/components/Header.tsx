@@ -2,15 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBookings } from '@/hooks/useBookings';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 
 export default function Header() {
-  const { user, isAdmin, isServant, canCreateBooking, signOut } = useAuth();
-  const { hasUserAlreadyBooked } = useBookings();
-  const { openAdminDashboard, openBookingModal, setIsEditingTeamDetails, openServantPortal } = useSchedulerStore();
-  
-  const userAlreadyBooked = !isAdmin && user?.email && hasUserAlreadyBooked(user.email);
+  const { user, isAdmin, isServant, signOut } = useAuth();
+  const { openAdminDashboard, setIsEditingTeamDetails, openServantPortal } = useSchedulerStore();
   
   const [profileOpen, setProfileOpen] = useState(false);
   const desktopRef = useRef<HTMLDivElement>(null);
@@ -311,17 +307,6 @@ export default function Header() {
               </div>
             )}
           </div>
-        </div>
-
-        <div className="px-4 pb-3 flex items-center gap-2">
-          {canCreateBooking && !userAlreadyBooked && (
-            <button
-              onClick={openBookingModal}
-              className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 flex items-center justify-center gap-2 shadow"
-            >
-              إضافة حجز
-            </button>
-          )}
         </div>
       </div>
     </header>
