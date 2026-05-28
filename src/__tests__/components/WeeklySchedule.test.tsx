@@ -4,8 +4,8 @@ import WeeklySchedule from '@/components/WeeklySchedule';
 
 vi.mock('@/store/useSchedulerStore', () => ({
   useSchedulerStore: vi.fn(() => ({
-    currentMonth: new Date(2026, 0, 15),
-    selectedDate: '2026-01-15',
+    currentMonth: new Date(2026, 6, 15),
+    selectedDate: '2026-07-15',
     setSelectedDate: vi.fn(),
     openEventModal: vi.fn(),
   })),

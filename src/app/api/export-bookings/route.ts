@@ -73,6 +73,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (isDetailed) {
+      cols.push({
+        header: 'ملاحظات المقيم / التعليق',
+        key: 'comments',
+        width: 40,
+      });
+    }
+
     worksheet.columns = cols;
 
     // Style Header Row
@@ -169,6 +177,7 @@ export async function POST(request: NextRequest) {
             period: `${b.startTime || ''} - ${b.endTime || ''}`,
             servantName: '—',
             servantEmail: '—',
+            comments: '—',
           };
 
           // Populate dynamic numbered candidate columns
@@ -197,6 +206,7 @@ export async function POST(request: NextRequest) {
               period: `${b.startTime || ''} - ${b.endTime || ''}`,
               servantName: ev.servantName || '',
               servantEmail: ev.servantEmail || '',
+              comments: ev.comments || '—',
             };
 
             // Populate dynamic numbered candidate columns

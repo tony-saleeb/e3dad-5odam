@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBookings } from "@/hooks/useBookings";
 import { useSettings } from "@/hooks/useSettings";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { getChurchColor } from "@/data/initialData";
-import { format, startOfWeek, addDays, subDays, isToday } from "date-fns";
+import { format, startOfWeek, addDays, subDays, isToday, isBefore, isAfter, startOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
 
 const dayNames = ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
@@ -18,7 +18,7 @@ export default function WeeklySchedule() {
   const { settings, loading: settingsLoading } = useSettings();
   
   const { timePeriods, bookingRange } = settings;
-  const { allowedDays } = bookingRange;
+  const { startMonth, endMonth, allowedDays } = bookingRange;
 
   const userAlreadyBooked = !isAdmin && user?.email && hasUserAlreadyBooked(user.email);
   
@@ -33,19 +33,33 @@ export default function WeeklySchedule() {
     setSelectedEndTime,
   } = useSchedulerStore();
 
-  const [mobileSelectedDayIndex, setMobileSelectedDayIndex] = useState(() => {
-    const today = new Date();
-    return today.getDay();
-  });
+  const year = currentMonth.getFullYear();
+  const startDate = useMemo(() => new Date(year, startMonth, 1), [year, startMonth]);
+  const endDate = useMemo(() => new Date(year, endMonth, 30), [year, endMonth]);
+
+  const isDayInBounds = useCallback((day: Date) => {
+    const dayStart = startOfDay(day);
+    return dayStart >= startOfDay(startDate) && dayStart <= startOfDay(endDate);
+  }, [startDate, endDate]);
 
   const weekStart = startOfWeek(currentMonth, { weekStartsOn: 0 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const visibleDays = useMemo(() => weekDays.filter(isDayInBounds), [weekDays, isDayInBounds]);
+
+  const [mobileSelectedDayIndex, setMobileSelectedDayIndex] = useState(0);
 
   useEffect(() => {
     const dayIndex = currentMonth.getDay();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMobileSelectedDayIndex(dayIndex);
-  }, [currentMonth]);
+    if (isDayInBounds(weekDays[dayIndex])) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMobileSelectedDayIndex(dayIndex);
+    } else {
+      const firstValidIdx = weekDays.findIndex(day => isDayInBounds(day));
+      if (firstValidIdx !== -1) {
+        setMobileSelectedDayIndex(firstValidIdx);
+      }
+    }
+  }, [currentMonth, weekDays, isDayInBounds]);
 
   const getBookingsForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
@@ -69,16 +83,78 @@ export default function WeeklySchedule() {
     openBookingModal();
   };
 
-  const goToPrevWeek = () => setCurrentMonth(subDays(currentMonth, 7));
-  const goToNextWeek = () => setCurrentMonth(addDays(currentMonth, 7));
-  const goToPrevDay = () => setMobileSelectedDayIndex((prev) => (prev === 0 ? 6 : prev - 1));
-  const goToNextDay = () => setMobileSelectedDayIndex((prev) => (prev === 6 ? 0 : prev + 1));
+  const canGoPrevWeek = useMemo(() => {
+    const prevWeekEnd = subDays(weekStart, 1);
+    return startOfDay(prevWeekEnd) >= startOfDay(startDate);
+  }, [weekStart, startDate]);
+
+  const canGoNextWeek = useMemo(() => {
+    const nextWeekStart = addDays(weekStart, 7);
+    return startOfDay(nextWeekStart) <= startOfDay(endDate);
+  }, [weekStart, endDate]);
+
+  const goToPrevWeek = () => {
+    if (!canGoPrevWeek) return;
+    setCurrentMonth(subDays(currentMonth, 7));
+  };
+
+  const goToNextWeek = () => {
+    if (!canGoNextWeek) return;
+    setCurrentMonth(addDays(currentMonth, 7));
+  };
+
+  const goToPrevDay = () => {
+    setMobileSelectedDayIndex((prev) => {
+      let curr = prev;
+      for (let i = 0; i < 7; i++) {
+        curr = curr === 0 ? 6 : curr - 1;
+        if (isDayInBounds(weekDays[curr])) {
+          return curr;
+        }
+      }
+      return prev;
+    });
+  };
+
+  const goToNextDay = () => {
+    setMobileSelectedDayIndex((prev) => {
+      let curr = prev;
+      for (let i = 0; i < 7; i++) {
+        curr = curr === 6 ? 0 : curr + 1;
+        if (isDayInBounds(weekDays[curr])) {
+          return curr;
+        }
+      }
+      return prev;
+    });
+  };
+
   const goToToday = () => {
     const today = new Date();
-    setCurrentMonth(today);
-    setSelectedDate(format(today, "yyyy-MM-dd"));
-    setMobileSelectedDayIndex(today.getDay());
+    let targetDate = today;
+    if (isBefore(today, startDate)) {
+      targetDate = startDate;
+    } else if (isAfter(today, endDate)) {
+      targetDate = endDate;
+    }
+    setCurrentMonth(targetDate);
+    setSelectedDate(format(targetDate, "yyyy-MM-dd"));
+    setMobileSelectedDayIndex(targetDate.getDay());
   };
+
+  const headerDateRangeText = useMemo(() => {
+    if (visibleDays.length === 0) return "";
+    const first = visibleDays[0];
+    const last = visibleDays[visibleDays.length - 1];
+    
+    if (first.getFullYear() !== last.getFullYear()) {
+      return `${format(first, "d MMM yyyy")} - ${format(last, "d MMM yyyy")}`;
+    }
+    if (first.getMonth() !== last.getMonth()) {
+      return `${format(first, "d MMM")} - ${format(last, "d MMM yyyy")}`;
+    }
+    return `${format(first, "d")} - ${format(last, "d MMM yyyy")}`;
+  }, [visibleDays]);
 
   if (loading) {
     return (
@@ -91,7 +167,7 @@ export default function WeeklySchedule() {
     );
   }
 
-  const mobileSelectedDay = weekDays[mobileSelectedDayIndex];
+  const mobileSelectedDay = weekDays[mobileSelectedDayIndex] || visibleDays[0] || currentMonth;
   const mobileBookings = getBookingsForDay(mobileSelectedDay);
   const isMobileToday = isToday(mobileSelectedDay);
 
@@ -105,36 +181,48 @@ export default function WeeklySchedule() {
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-800">الجدول الأسبوعي</h2>
               <p className="text-[10px] sm:text-xs text-gray-400">
-                {format(weekStart, "d MMM")} - {format(addDays(weekStart, 6), "d MMM yyyy")}
+                <span dir="ltr">{headerDateRangeText}</span>
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={goToNextWeek} className="p-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-all">
+              <button 
+                onClick={goToNextWeek} 
+                disabled={!canGoNextWeek}
+                className={`p-1.5 rounded-lg transition-all ${
+                  !canGoNextWeek ? "opacity-20 cursor-not-allowed text-gray-300" : "hover:bg-gray-100 active:bg-gray-200 text-gray-500"
+                }`}
+              >
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
               </button>
               <button onClick={goToToday} className="px-2.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-lg active:bg-emerald-100 transition-all">اليوم</button>
-              <button onClick={goToPrevWeek} className="p-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-all">
+              <button 
+                onClick={goToPrevWeek} 
+                disabled={!canGoPrevWeek}
+                className={`p-1.5 rounded-lg transition-all ${
+                  !canGoPrevWeek ? "opacity-20 cursor-not-allowed text-gray-300" : "hover:bg-gray-100 active:bg-gray-200 text-gray-500"
+                }`}
+              >
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
             </div>
           </div>
 
           <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
-            {weekDays.map((day, index) => {
-              const isSelected = index === mobileSelectedDayIndex;
+            {visibleDays.map((day) => {
+              const isSelected = day.getDay() === mobileSelectedDayIndex;
               const isDayToday = isToday(day);
               const isAllowed = allowedDays.includes(day.getDay());
               const dayHasBooking = getBookingsForDay(day).length > 0;
               
               return (
                 <button
-                  key={index}
-                  onClick={() => setMobileSelectedDayIndex(index)}
+                  key={day.toISOString()}
+                  onClick={() => setMobileSelectedDayIndex(day.getDay())}
                   className={`flex-1 min-w-10 py-2 px-0.5 rounded-xl text-center transition-all active:scale-95 ${
                     isSelected ? "bg-slate-800 text-white shadow-lg scale-105" : isDayToday ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-50 text-gray-600"
                   } ${isAllowed ? '' : 'opacity-30'}`}
                 >
-                  <p className="text-[9px] sm:text-[10px] font-medium opacity-80">{dayNames[index]}</p>
+                  <p className="text-[9px] sm:text-[10px] font-medium opacity-80">{dayNames[day.getDay()]}</p>
                   <p className="text-sm sm:text-base font-bold">{format(day, "d")}</p>
                   {dayHasBooking && !isSelected && (
                     <span className="block w-1 h-1 rounded-full bg-emerald-500 mx-auto mt-0.5" />
@@ -150,7 +238,7 @@ export default function WeeklySchedule() {
           <div className="flex items-center gap-2">
             <button onClick={goToNextDay} className="p-1.5 hover:bg-white rounded-lg active:bg-gray-100 transition-all"><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg></button>
             <div>
-              <p className={`text-base font-bold ${isMobileToday ? "text-emerald-700" : "text-gray-800"}`}>{dayNamesFull[mobileSelectedDayIndex]}</p>
+              <p className={`text-base font-bold ${isMobileToday ? "text-emerald-700" : "text-gray-800"}`}>{dayNamesFull[mobileSelectedDay.getDay()]}</p>
               <p className="text-xs text-gray-500">{format(mobileSelectedDay, "d MMMM yyyy", { locale: ar })}</p>
             </div>
             <button onClick={goToPrevDay} className="p-1.5 hover:bg-white rounded-lg active:bg-gray-100 transition-all"><svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
@@ -219,12 +307,30 @@ export default function WeeklySchedule() {
         <div className="flex items-center justify-between pb-6 mb-6 border-b border-slate-100" dir="rtl">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <button onClick={goToNextWeek} className="p-2 rounded-xl bg-white shadow-sm border border-slate-100 text-slate-500 hover:text-slate-700 transition-all hover:shadow"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg></button>
-              <button onClick={goToPrevWeek} className="p-2 rounded-xl bg-white shadow-sm border border-slate-100 text-slate-500 hover:text-slate-700 transition-all hover:shadow"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg></button>
+              <button 
+                onClick={goToNextWeek} 
+                disabled={!canGoNextWeek}
+                className={`p-2 rounded-xl bg-white shadow-sm border border-slate-100 text-slate-500 transition-all ${
+                  !canGoNextWeek ? "opacity-30 cursor-not-allowed text-gray-300" : "hover:text-slate-700 hover:shadow"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+              </button>
+              <button 
+                onClick={goToPrevWeek} 
+                disabled={!canGoPrevWeek}
+                className={`p-2 rounded-xl bg-white shadow-sm border border-slate-100 text-slate-500 transition-all ${
+                  !canGoPrevWeek ? "opacity-30 cursor-not-allowed text-gray-300" : "hover:text-slate-700 hover:shadow"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+              </button>
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-800 tracking-tight">الجدول الأسبوعي</h2>
-              <p className="text-sm font-medium text-slate-400">{format(weekStart, "d MMM")} - {format(addDays(weekStart, 6), "d MMM yyyy")}</p>
+              <p className="text-sm font-medium text-slate-400">
+                <span dir="ltr">{headerDateRangeText}</span>
+              </p>
             </div>
           </div>
           <button onClick={goToToday} className="px-4 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 rounded-xl transition-all shadow-sm shadow-emerald-100/50 border border-emerald-100">اليوم</button>
@@ -245,13 +351,13 @@ export default function WeeklySchedule() {
 
           {/* Day Rows */}
           <div className="flex flex-col gap-3">
-            {weekDays.map((day, idx) => {
+            {visibleDays.map((day) => {
               const isAllowed = allowedDays.includes(day.getDay());
               const dayBookings = getBookingsForDay(day);
               return (
-                <div key={idx} className={`flex gap-4 items-center p-2 rounded-2xl transition-all ${isToday(day) ? 'bg-emerald-500/4 border border-emerald-200/50 shadow-md shadow-emerald-500/2' : 'bg-transparent'} ${!isAllowed ? 'opacity-40' : ''}`}>
+                <div key={day.toISOString()} className={`flex gap-4 items-center p-2 rounded-2xl transition-all ${isToday(day) ? 'bg-emerald-500/4 border border-emerald-200/50 shadow-md shadow-emerald-500/2' : 'bg-transparent'} ${!isAllowed ? 'opacity-40' : ''}`}>
                   <div className={`w-24 p-4 rounded-xl text-center shrink-0 flex flex-col justify-center transition-all ${isToday(day) ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 font-bold scale-105' : 'bg-white border border-slate-100 shadow-sm'}`}>
-                    <p className={`text-xs font-black ${isToday(day) ? 'text-emerald-100' : 'text-slate-400'}`}>{dayNames[idx]}</p>
+                    <p className={`text-xs font-black ${isToday(day) ? 'text-emerald-100' : 'text-slate-400'}`}>{dayNames[day.getDay()]}</p>
                     <p className="text-2xl font-black mt-0.5">{format(day, "d")}</p>
                   </div>
                   
