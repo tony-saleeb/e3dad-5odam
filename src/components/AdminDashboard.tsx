@@ -143,7 +143,11 @@ export default function AdminDashboard() {
       const res = await fetch('/api/export-bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookings }),
+        body: JSON.stringify({ 
+          bookings,
+          evaluations,
+          evaluationFields: settings.evaluationFields || []
+        }),
       });
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();
@@ -370,6 +374,9 @@ export default function AdminDashboard() {
                             </div>
                             <p className="text-xs text-slate-500 mt-1 font-bold">
                               <span className="text-slate-450 font-black">المشروع:</span> {b.title}
+                            </p>
+                            <p className="text-[11px] text-slate-450 mt-1 font-bold">
+                              <span className="text-slate-400 font-bold">الحاجز:</span> {b.requesterName} <span className="text-slate-400 font-semibold" dir="ltr">({b.requesterEmail})</span>
                             </p>
                           </div>
 
@@ -862,7 +869,7 @@ export default function AdminDashboard() {
                                       {ev.comments && (
                                         <div className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-100/50 text-xs text-slate-650 leading-relaxed font-bold">
                                           <span className="text-[10px] text-slate-450 block mb-1">💬 تعليق الخادم:</span>
-                                          "{ev.comments}"
+                                          &quot;{ev.comments}&quot;
                                         </div>
                                       )}
                                     </div>

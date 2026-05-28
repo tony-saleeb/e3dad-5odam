@@ -319,13 +319,14 @@ export default function ServantPortal() {
 
                       <button
                         onClick={() => handleOpenGrading(booking)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                        disabled={hasEvaluated}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
                           hasEvaluated
-                            ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.2)]'
+                            ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.2)] cursor-pointer'
                         }`}
                       >
-                        {hasEvaluated ? 'تعديل التقييم' : 'تقييم الفريق'}
+                        {hasEvaluated ? 'تم التقييم ✓' : 'تقييم الفريق'}
                       </button>
                     </div>
                   </div>

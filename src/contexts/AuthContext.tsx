@@ -3,7 +3,7 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, User } from 'firebase/auth';
 import { auth, googleProvider, db } from '@/lib/firebase';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { TeamMember } from '@/types';
 
 export interface TeamDetails {
@@ -90,6 +90,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               teamDetails: null,
             });
             setLoading(false);
+
+            // Auto-provision allowed_users document in Firestore so security rules and lists work seamlessly
+            try {
+              await setDoc(doc(db, 'allowed_users', email), {
+                email,
+                name: firebaseUser.displayName || email.split('@')[0],
+                role: 'admin',
+                created_at: new Date().toISOString(),
+              });
+            } catch (err) {
+              console.error('[Auth] Failed to auto-provision hardcoded admin doc:', err);
+            }
             return;
           }
 

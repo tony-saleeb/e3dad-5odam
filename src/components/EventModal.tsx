@@ -24,6 +24,26 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [realtimeAllowCancellation, setRealtimeAllowCancellation] = useState<boolean | null>(null);
+  const [hasEvaluated, setHasEvaluated] = useState(false);
+
+  // Listen to check if the servant has already evaluated this booking
+  useEffect(() => {
+    if (!isOpen || !booking || !user?.email || !isServant) {
+      setHasEvaluated(false);
+      return;
+    }
+    const ref = doc(db, 'evaluations', `${booking.id}_${user.email.toLowerCase()}`);
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        setHasEvaluated(snap.exists());
+      },
+      (err) => {
+        console.error('[EventModal] Failed to listen to evaluation:', err);
+      }
+    );
+    return () => unsub();
+  }, [isOpen, booking, user, isServant]);
 
   // Directly observe the allow_user_cancellation document from Firestore in real-time
   useEffect(() => {
@@ -139,6 +159,7 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
                   }
                   label="قائد المجموعة"
                   value={booking.requesterName}
+                  subValue={booking.requesterEmail}
                 />
               )}
               {booking.teamName && (
@@ -243,7 +264,7 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
           </div>
 
           {/* Servant Evaluation Shortcut Button */}
-          {isServant && booking.status === 'approved' && (
+          {isServant && booking.status === 'approved' && !hasEvaluated && (
             <div className="px-6 pb-6 pt-3 bg-indigo-50/20 border-t border-indigo-100 shrink-0">
               <button
                 onClick={() => {
@@ -336,7 +357,7 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
   );
 }
 
-function DetailCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function DetailCard({ icon, label, value, subValue }: { icon: React.ReactNode; label: string; value: string; subValue?: string }) {
   return (
     <div className="flex items-center gap-3 bg-white border border-slate-100 p-3 rounded-2xl shadow-xs transition-all hover:border-slate-200/80 hover:scale-[1.01] hover:shadow-sm">
       <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shrink-0 border border-slate-100">
@@ -345,6 +366,9 @@ function DetailCard({ icon, label, value }: { icon: React.ReactNode; label: stri
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-normal">{label}</p>
         <p className="text-xs font-black text-slate-800 pb-0.5 truncate mt-0.5 leading-normal">{value}</p>
+        {subValue && (
+          <p className="text-[9px] text-slate-450 font-bold leading-normal truncate mt-0.5 font-semibold" dir="ltr">{subValue}</p>
+        )}
       </div>
     </div>
   );

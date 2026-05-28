@@ -13,7 +13,7 @@ const dayNames = ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خم�
 const dayNamesFull = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
 export default function WeeklySchedule() {
-  const { user, isAdmin, canSeePending } = useAuth();
+  const { user, isAdmin, canSeePending, canCreateBooking } = useAuth();
   const { bookings, loading: bookingsLoading, hasUserAlreadyBooked } = useBookings();
   const { settings, loading: settingsLoading } = useSettings();
   
@@ -58,7 +58,7 @@ export default function WeeklySchedule() {
   };
 
   const handleDayClick = (date: Date, startTime?: string, endTime?: string) => {
-    if (!user) return;
+    if (!user || !canCreateBooking) return;
     
     // CHURCH ADAPTATION: Disable booking on non-allowed days
     if (!allowedDays.includes(date.getDay())) return;
@@ -190,7 +190,7 @@ export default function WeeklySchedule() {
                     )}
                   </div>
                   
-                  {!booking && user && isAllowed && !userAlreadyBooked && (
+                  {!booking && user && canCreateBooking && isAllowed && !userAlreadyBooked && (
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
@@ -267,7 +267,7 @@ export default function WeeklySchedule() {
                             <p className="font-black text-white text-base tracking-tight leading-snug pb-0.5">{booking.churchName}</p>
                             <p className="mt-1.5 text-xs text-white/90 font-medium pb-0.5"><strong className="text-white opacity-100 font-bold">المشروع:</strong> {booking.title}</p>
                           </div>
-                        ) : isAllowed && user && !userAlreadyBooked ? (
+                        ) : isAllowed && user && canCreateBooking && !userAlreadyBooked ? (
                           <button 
                             onClick={() => handleDayClick(day, period.startTime, period.endTime)}
                             className="absolute inset-0 bg-white hover:bg-slate-50 rounded-2xl border border-dashed border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all flex flex-col items-center justify-center gap-2 group shadow-sm"
