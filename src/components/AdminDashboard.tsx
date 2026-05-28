@@ -271,7 +271,7 @@ export default function AdminDashboard() {
                       className="px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-800/10 bg-white text-sm transition-all font-bold text-slate-700 cursor-pointer"
                     >
                       <option value="user">قائد فريق (User)</option>
-                      <option value="servant">خادم مقيم / مقيم (Servant)</option>
+                      <option value="servant">خادم مقيم / servant</option>
                       <option value="admin">مسؤول (Admin)</option>
                     </select>
                   </div>
@@ -587,7 +587,7 @@ export default function AdminDashboard() {
                             const newPeriods = editingSettings.timePeriods.filter((_, i) => i !== idx);
                             setEditingSettings({ ...editingSettings, timePeriods: newPeriods });
                           }}
-                          className="h-10 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold transition-all border border-transparent hover:border-slate-200 cursor-pointer"
+                          className="h-10 text-rose-600 hover:bg-rose-50 hover:border-rose-100 rounded-xl text-xs font-bold transition-all border border-transparent cursor-pointer px-3 active:scale-95"
                         >
                           حذف الفترة
                         </button>
