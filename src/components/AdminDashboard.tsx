@@ -302,7 +302,7 @@ export default function AdminDashboard() {
                             u.role === 'admin' 
                               ? 'bg-slate-700 text-white shadow-slate-700/10' 
                               : u.role === 'servant'
-                                ? 'bg-indigo-650 text-white shadow-indigo-600/10'
+                                ? 'bg-indigo-600 text-white shadow-indigo-600/10'
                                 : 'bg-slate-500 text-white shadow-slate-500/10'
                           }`}>
                             {u.name[0]}
