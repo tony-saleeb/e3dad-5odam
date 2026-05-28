@@ -418,23 +418,25 @@ export default function AdminDashboard() {
                     {bookings.map((b) => {
                       const memberCount = b.teamMembers ? b.teamMembers.length : (b.teammates || []).length;
                       return (
-                        <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 px-4 py-3.5 rounded-2xl transition-all duration-200 gap-4 hover:shadow-2xs">
+                        <div key={b.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 sm:px-4 sm:py-3.5 rounded-2xl transition-all duration-200 gap-3.5 sm:gap-4 hover:shadow-2xs">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="w-2 h-4 rounded-full bg-slate-700" />
-                              <p className="font-black text-slate-800 text-sm leading-normal pb-0.5">{b.churchName}</p>
+                              <span className="w-2 h-4 rounded-full bg-slate-700 shrink-0" />
+                              <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{b.churchName}</p>
                             </div>
                             <p className="text-xs text-slate-500 mt-1 font-bold">
                               <span className="text-slate-450 font-black">المشروع:</span> {b.title}
                             </p>
-                            <p className="text-[11px] text-slate-450 mt-1 font-bold">
-                              <span className="text-slate-400 font-bold">الحاجز:</span> {b.requesterName} <span className="text-slate-400 font-semibold" dir="ltr">({b.requesterEmail})</span>
+                            <p className="text-[11px] text-slate-450 mt-1 font-bold flex flex-wrap items-center gap-1">
+                              <span className="text-slate-400 font-bold">الحاجز:</span> 
+                              <span className="text-slate-800 font-black">{b.requesterName}</span> 
+                              <span className="text-slate-400 font-semibold" dir="ltr">({b.requesterEmail})</span>
                             </p>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-4 shrink-0">
+                          <div className="flex items-center justify-between sm:justify-end gap-4 border-t border-slate-100/50 pt-3 sm:pt-0 sm:border-0 shrink-0">
                             {/* Date / Time */}
-                            <div className="flex flex-col items-start sm:items-end text-left sm:text-right">
+                            <div className="flex flex-col items-start sm:items-end text-right sm:text-right">
                               <p className="text-xs font-black text-slate-700 leading-none">{b.date}</p>
                               <span dir="ltr" className="inline-block text-[10px] font-bold mt-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200/60 leading-none">
                                 {b.startTime} - {b.endTime}
@@ -830,36 +832,42 @@ export default function AdminDashboard() {
                           >
                             {/* Card Header Summary */}
                             <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                              <div className="flex gap-3">
+                              <div className="flex gap-3 min-w-0">
                                 <span className={`w-1.5 h-11 rounded-full bg-linear-to-b ${churchColor.gradient || 'from-slate-700 to-slate-800'} shrink-0`} />
-                                <div>
-                                  <p className="font-black text-slate-800 text-sm leading-normal pb-0.5">{b.churchName}</p>
-                                  <p className="text-xs text-slate-500 font-bold mt-1 leading-normal">
-                                    اسم الفريق: <span className="text-slate-850 font-black">{b.teamName}</span> | المشروع: <span className="text-slate-850 font-black">{b.title}</span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{b.churchName}</p>
+                                  <p className="text-xs text-slate-500 font-bold mt-1 leading-normal flex flex-wrap items-center gap-1.5">
+                                    <span>اسم الفريق:</span> 
+                                    <span className="text-slate-850 font-black">{b.teamName}</span> 
+                                    <span className="text-slate-300">|</span> 
+                                    <span>المشروع:</span> 
+                                    <span className="text-slate-850 font-black">{b.title}</span>
                                   </p>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                                {/* Total score pill */}
-                                <div className="bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl text-center">
-                                  <p className="text-[9px] font-bold text-slate-450 uppercase leading-none">مجموع التقييم</p>
-                                  <p className="text-xs font-black text-slate-800 mt-1 leading-none">
-                                    {totalSum} / {totalMax}
-                                  </p>
-                                </div>
+                              <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 border-t border-slate-100/50 pt-3 sm:pt-0 sm:border-0 shrink-0">
+                                <div className="flex items-center gap-3">
+                                  {/* Total score pill */}
+                                  <div className="bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl text-center shadow-3xs">
+                                    <p className="text-[9px] font-bold text-slate-450 uppercase leading-none">مجموع التقييم</p>
+                                    <p className="text-xs font-black text-slate-800 mt-1 leading-none">
+                                      {totalSum} / {totalMax}
+                                    </p>
+                                  </div>
 
-                                {/* Servants evaluated count */}
-                                <div className="bg-indigo-50/50 border border-indigo-100 px-3.5 py-1.5 rounded-xl text-center">
-                                  <p className="text-[9px] font-bold text-indigo-500 uppercase leading-none">المقيمين</p>
-                                  <p className="text-xs font-black text-indigo-700 mt-1 leading-none">
-                                    {evsCount} خادم
-                                  </p>
+                                  {/* Servants evaluated count */}
+                                  <div className="bg-indigo-50/50 border border-indigo-100 px-3.5 py-1.5 rounded-xl text-center shadow-3xs">
+                                    <p className="text-[9px] font-bold text-indigo-500 uppercase leading-none">المقيمين</p>
+                                    <p className="text-xs font-black text-indigo-700 mt-1 leading-none">
+                                      {evsCount} خادم
+                                    </p>
+                                  </div>
                                 </div>
 
                                 <button
                                   onClick={() => setExpandedBookingId(isExpanded ? null : b.id)}
-                                  className="px-3.5 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1 active:scale-95 shadow-3xs"
+                                  className="px-3.5 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-black rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-3xs w-full sm:w-auto mt-2 sm:mt-0"
                                 >
                                   {isExpanded ? 'إخفاء التفاصيل' : 'تفاصيل التقييم'}
                                   <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
