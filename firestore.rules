@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: Check if the user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper: Get lowercased email of the current authenticated user
+    function currentUserEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    // Helper: Check if the user document exists in allowed_users collection
+    function userExists() {
+      return exists(/databases/$(database)/documents/allowed_users/$(currentUserEmail()));
+    }
+
+    // Helper: Get user profile details from allowed_users collection
+    function getUserData() {
+      return get(/databases/$(database)/documents/allowed_users/$(currentUserEmail())).data;
+    }
+
+    // Helper: Check if current user is an Admin
+    function isAdmin() {
+      return isSignedIn() && (
+        currentUserEmail() == 'tonysaleeb23@gmail.com' ||
+        (userExists() && getUserData().role == 'admin')
+      );
+    }
+
+    // Helper: Check if current user is a Servant
+    function isServant() {
+      return isSignedIn() && userExists() && getUserData().role == 'servant';
+    }
+
+    // Helper: Check if current user is a normal team leader
+    function isUser() {
+      return isSignedIn() && userExists() && getUserData().role == 'user';
+    }
+
+    // ==========================================
+    // 1. Allowed Users Rules (Allowed emails & roles)
+    // ==========================================
+    match /allowed_users/{email} {
+      // Admins can manage all users
+      allow read, write: if isAdmin();
+      
+      // Signed-in users can read their own allowed user profile
+      allow read: if isSignedIn() && currentUserEmail() == email.lower();
+      
+      // Users can update their own profile details (e.g. SetupTeamPage setup)
+      allow update: if isSignedIn() && currentUserEmail() == email.lower();
+    }
+
+    // ==========================================
+    // 2. Bookings Rules (Calendar slots & projects)
+    // ==========================================
+    match /bookings/{bookingId} {
+      // Public Read: Allowed so the calendar schedule is visible immediately on land/sign-in
+      allow read: if true;
+      
+      // Create: Authenticated users can book a slot
+      allow create: if isSignedIn();
+      
+      // Update/Delete: Only the original creator of the booking or an Admin can modify it
+      allow update, delete: if isAdmin() || (isSignedIn() && request.auth.token.email.lower() == resource.data.requesterEmail.lower());
+    }
+
+    // ==========================================
+    // 3. Settings Rules (System limits & scoring parameters)
+    // ==========================================
+    match /settings/{settingId} {
+      // Public Read: App settings (time slots, date ranges, grading fields) are read on startup
+      allow read: if true;
+      
+      // Write: Only Admins can modify settings
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // 4. Evaluations Rules (Servant grading & feedback)
+    // ==========================================
+    match /evaluations/{evaluationId} {
+      // Admins and Servants can read grading reviews
+      allow read: if isAdmin() || isServant();
+      
+      // Create/Update: Servants can grade teams and update their own grades (Id format: bookingId_email)
+      allow create, update: if isServant() && 
+                            request.resource.data.servantEmail == currentUserEmail() &&
+                            evaluationId == request.resource.data.bookingId + '_' + currentUserEmail();
+      
+      // Admins have full access to manage evaluations
+      allow write: if isAdmin();
+    }
+  }
+}

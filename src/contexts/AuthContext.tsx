@@ -19,7 +19,7 @@ export interface UserData {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'servant';
   teamDetails: TeamDetails | null;
 }
 
@@ -27,6 +27,7 @@ interface AuthContextType {
   user: UserData | null;
   loading: boolean;
   isAdmin: boolean;
+  isServant: boolean;
   canCreateBooking: boolean;
   canSeePending: boolean;
   authError: string | null;
@@ -99,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
             photoURL: firebaseUser.photoURL,
-            role: data.role as 'admin' | 'user',
+            role: data.role as 'admin' | 'user' | 'servant',
             teamDetails: data.teamDetails || null,
           });
           setLoading(false);
@@ -149,12 +150,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = user?.role === 'admin';
+  const isServant = user?.role === 'servant';
 
   const value: AuthContextType = {
     user,
     loading,
     isAdmin,
-    canCreateBooking: !!user,
+    isServant,
+    canCreateBooking: user?.role === 'user' || user?.role === 'admin',
     canSeePending: isAdmin,
     authError,
     signInWithGoogle,

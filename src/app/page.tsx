@@ -7,6 +7,7 @@ import MiniCalendar from '@/components/MiniCalendar';
 import BookingModal from '@/components/BookingModal';
 import AdminDashboard from '@/components/AdminDashboard';
 import EventModal from '@/components/EventModal';
+import ServantPortal from '@/components/ServantPortal';
 import SignInPage from '@/components/SignInPage';
 import SetupTeamPage from '@/components/SetupTeamPage';
 import { ToastContainer } from '@/components/Toast';
@@ -61,6 +62,7 @@ export default function Home() {
       {/* Modals */}
       <BookingModal />
       <AdminDashboard />
+      <ServantPortal />
       <EventModal 
         booking={selectedEvent}
         isOpen={isEventModalOpen}

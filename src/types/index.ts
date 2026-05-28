@@ -50,6 +50,26 @@ export interface TeamMember {
   id: string; // National ID or church ID
 }
 
+export interface EvaluationField {
+  id: string;
+  name: string;
+  maxMark: number;
+}
+
+export interface TeamEvaluation {
+  id: string;
+  bookingId: string;
+  date: string;
+  servantEmail: string;
+  servantName: string;
+  grades: {
+    [fieldId: string]: number;
+  };
+  comments?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppSettings {
   timePeriods: TimePeriod[];
   bookingRange: {
@@ -62,6 +82,7 @@ export interface AppSettings {
     max: number;
   };
   allowUserCancellation: boolean;
+  evaluationFields: EvaluationField[];
 }
 
 export interface Booking {

@@ -6,9 +6,9 @@ import { useBookings } from '@/hooks/useBookings';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 
 export default function Header() {
-  const { user, isAdmin, canCreateBooking, signOut } = useAuth();
+  const { user, isAdmin, isServant, canCreateBooking, signOut } = useAuth();
   const { hasUserAlreadyBooked } = useBookings();
-  const { openAdminDashboard, openBookingModal, setIsEditingTeamDetails } = useSchedulerStore();
+  const { openAdminDashboard, openBookingModal, setIsEditingTeamDetails, openServantPortal } = useSchedulerStore();
   
   const userAlreadyBooked = !isAdmin && user?.email && hasUserAlreadyBooked(user.email);
   
@@ -72,6 +72,18 @@ export default function Header() {
 
             {/* Left: Profile */}
             <div className="flex items-center gap-3" ref={desktopRef}>
+              {isServant && (
+                <button
+                  onClick={openServantPortal}
+                  className="px-4 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-all font-bold text-sm flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                  <span>تقييم الفرق</span>
+                </button>
+              )}
+
               <div className="relative">
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
@@ -108,9 +120,9 @@ export default function Header() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-black text-slate-800 truncate">{user?.displayName || 'المستخدم'}</p>
                           <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-                          <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200/60">
-                            <span className="w-1 h-1 rounded-full bg-slate-500" />
-                            {isAdmin ? 'مسؤول' : 'قائد فريق'}
+                          <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                            <span className="w-1 h-1 rounded-full bg-indigo-500" />
+                            {isAdmin ? 'مسؤول' : isServant ? 'مقيم' : 'قائد فريق'}
                           </span>
                         </div>
                       </div>
@@ -118,6 +130,26 @@ export default function Header() {
 
                     {/* Menu items */}
                     <div className="p-2">
+                      {isServant && (
+                        <button
+                          onClick={() => {
+                            setProfileOpen(false);
+                            openServantPortal();
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 hover:bg-slate-50 transition-all text-right cursor-pointer"
+                        >
+                          <span className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/60 flex items-center justify-center shrink-0">
+                            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold">تقييم مشاريع فرق العمل</p>
+                            <p className="text-xs text-slate-400">تسجيل وتعديل درجات تقييم اليوم</p>
+                          </div>
+                        </button>
+                      )}
+
                       {isAdmin && (
                         <button
                           onClick={handleOpenAdmin}
@@ -212,12 +244,28 @@ export default function Header() {
                 <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
                   <p className="text-sm font-bold text-slate-800 truncate">{user?.displayName || 'المستخدم'}</p>
                   <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-                  <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200/60">
-                    <span className="w-1 h-1 rounded-full bg-slate-500" />
-                    {isAdmin ? 'مسؤول' : 'قائد فريق'}
+                  <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                    <span className="w-1 h-1 rounded-full bg-indigo-500" />
+                    {isAdmin ? 'مسؤول' : isServant ? 'مقيم' : 'قائد فريق'}
                   </span>
                 </div>
                 <div className="p-1.5">
+                  {isServant && (
+                    <button
+                      onClick={() => {
+                        setProfileOpen(false);
+                        openServantPortal();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-slate-700 hover:bg-slate-50 transition-all text-right text-sm font-bold cursor-pointer"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200/60 flex items-center justify-center shrink-0">
+                        <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                      </span>
+                      تقييم مشاريع فرق العمل
+                    </button>
+                  )}
                   {isAdmin && (
                     <button
                       onClick={handleOpenAdmin}

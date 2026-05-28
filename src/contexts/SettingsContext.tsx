@@ -3,8 +3,15 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { AppSettings } from '@/types';
+import { AppSettings, EvaluationField } from '@/types';
 import { timePeriods as defaultTimePeriods, ALLOWED_DAYS } from '@/data/initialData';
+
+const defaultEvaluationFields: EvaluationField[] = [
+  { id: 'eval-1', name: 'الالتزام بالوقت والحضور', maxMark: 10 },
+  { id: 'eval-2', name: 'التعاون والروح الرياضية', maxMark: 10 },
+  { id: 'eval-3', name: 'الابتكار وجودة الفكرة', maxMark: 10 },
+  { id: 'eval-4', name: 'طريقة العرض والتقديم', maxMark: 10 },
+];
 
 const defaultSettings: AppSettings = {
   timePeriods: defaultTimePeriods,
@@ -18,13 +25,14 @@ const defaultSettings: AppSettings = {
     max: 20,
   },
   allowUserCancellation: true,
+  evaluationFields: defaultEvaluationFields,
 };
 
 interface SettingsContextType {
   settings: AppSettings;
   loading: boolean;
   updateSettings: (
-    key: 'time_periods' | 'booking_range' | 'team_member_limits' | 'allow_user_cancellation',
+    key: 'time_periods' | 'booking_range' | 'team_member_limits' | 'allow_user_cancellation' | 'evaluation_fields',
     value: unknown
   ) => Promise<boolean>;
   refreshSettings: () => Promise<void>;
@@ -101,16 +109,32 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Listen to evaluation_fields document
+    const unsubscribeEF = onSnapshot(
+      doc(db, 'settings', 'evaluation_fields'),
+      (snap) => {
+        const val = snap.exists() ? snap.data().value : defaultEvaluationFields;
+        setSettings(prev => ({
+          ...prev,
+          evaluationFields: val || defaultEvaluationFields,
+        }));
+      },
+      (err) => {
+        console.error('Error listening to evaluation_fields:', err);
+      }
+    );
+
     return () => {
       unsubscribeTP();
       unsubscribeBR();
       unsubscribeTML();
       unsubscribeAUC();
+      unsubscribeEF();
     };
   }, []);
 
   const updateSettings = async (
-    key: 'time_periods' | 'booking_range' | 'team_member_limits' | 'allow_user_cancellation',
+    key: 'time_periods' | 'booking_range' | 'team_member_limits' | 'allow_user_cancellation' | 'evaluation_fields',
     value: unknown
   ) => {
     try {

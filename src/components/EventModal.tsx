@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
+import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { Booking } from '@/types';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -16,9 +17,10 @@ interface EventModalProps {
 }
 
 export default function EventModal({ booking, isOpen, onClose }: EventModalProps) {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isServant } = useAuth();
   const { updateBookingStatus, deleteBooking } = useBookings();
   const { settings } = useSettings();
+  const { openServantPortal, setGradingBooking } = useSchedulerStore();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [realtimeAllowCancellation, setRealtimeAllowCancellation] = useState<boolean | null>(null);
@@ -239,6 +241,25 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
               </div>
             )}
           </div>
+
+          {/* Servant Evaluation Shortcut Button */}
+          {isServant && booking.status === 'approved' && (
+            <div className="px-6 pb-6 pt-3 bg-indigo-50/20 border-t border-indigo-100 shrink-0">
+              <button
+                onClick={() => {
+                  setGradingBooking(booking);
+                  onClose();
+                  openServantPortal();
+                }}
+                className="w-full py-3.5 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-600/10 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 text-sm cursor-pointer"
+              >
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                رصد وتقييم درجات هذا الفريق
+              </button>
+            </div>
+          )}
 
           {/* Actions — only for owner or admin */}
           {canModify && (
