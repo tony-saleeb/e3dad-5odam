@@ -214,7 +214,7 @@ export default function AdminDashboard() {
 
           {/* Tabs capsule styled control */}
           <div className="px-6 py-4 bg-white border-b border-slate-50 shrink-0 flex items-center justify-center">
-            <div className="bg-slate-100/85 p-1 rounded-2xl flex gap-1 w-full max-w-xl">
+            <div className="bg-slate-100/85 p-1 rounded-2xl flex gap-1 w-full max-w-xl overflow-x-auto scrollbar-hide flex-nowrap sm:flex-wrap">
               {(
                 [
                   { id: 'users', label: 'المستخدمون' },
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`py-2.5 text-xs font-black rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shrink-0 px-4 sm:px-0 sm:flex-1 ${
                     activeTab === tab.id 
                       ? 'bg-white text-slate-800 shadow-sm border border-slate-200/40' 
                       : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
