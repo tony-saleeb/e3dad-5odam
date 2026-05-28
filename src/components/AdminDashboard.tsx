@@ -54,6 +54,7 @@ export default function AdminDashboard() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [loadingEvaluations, setLoadingEvaluations] = useState(false);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+  const [isDetailedExport, setIsDetailedExport] = useState(true);
 
   useEffect(() => {
     setEditingSettings(settings);
@@ -146,7 +147,8 @@ export default function AdminDashboard() {
         body: JSON.stringify({ 
           bookings,
           evaluations,
-          evaluationFields: settings.evaluationFields || []
+          evaluationFields: settings.evaluationFields || [],
+          detailed: isDetailedExport
         }),
       });
       if (!res.ok) throw new Error('Export failed');
@@ -346,15 +348,52 @@ export default function AdminDashboard() {
                     </h3>
                     <p className="text-xs text-slate-400 font-bold mt-1">إجمالي الحجوزات المسجلة بالنظام: {bookings.length} حجز</p>
                   </div>
-                  <button
-                    onClick={handleExportCSV}
-                    className="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl shadow-md shadow-slate-800/10 transition-all flex items-center justify-center gap-2 text-xs active:scale-95 cursor-pointer shrink-0"
-                  >
-                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    تصدير ملف Excel كامل
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3.5 mt-2 sm:mt-0">
+                    {/* Toggle: Detailed vs Simple */}
+                    <div className="flex items-center gap-3.5 bg-white border border-slate-200/80 px-4 py-2.5 rounded-2xl shadow-2xs select-none">
+                      <span 
+                        onClick={() => setIsDetailedExport(true)}
+                        className={`text-[11px] font-black transition-colors duration-250 cursor-pointer ${
+                          isDetailedExport ? 'text-slate-900 font-black' : 'text-slate-400'
+                        }`}
+                      >
+                        تفصيلي
+                      </span>
+                      <button
+                        dir="ltr"
+                        type="button"
+                        onClick={() => setIsDetailedExport(!isDetailedExport)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none ${
+                          isDetailedExport ? 'bg-emerald-600' : 'bg-slate-800'
+                        }`}
+                        aria-label="Toggle export mode"
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
+                            isDetailedExport ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                      <span 
+                        onClick={() => setIsDetailedExport(false)}
+                        className={`text-[11px] font-black transition-colors duration-250 cursor-pointer ${
+                          !isDetailedExport ? 'text-slate-900 font-black' : 'text-slate-400'
+                        }`}
+                      >
+                        بسيط
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={handleExportCSV}
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-md shadow-emerald-600/10 transition-all flex items-center justify-center gap-2 text-xs active:scale-95 cursor-pointer shrink-0"
+                    >
+                      <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      تصدير Excel ✓
+                    </button>
+                  </div>
                 </div>
 
                 {bookings.length === 0 ? (

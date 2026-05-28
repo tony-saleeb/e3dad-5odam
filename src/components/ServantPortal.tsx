@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
@@ -111,15 +111,15 @@ export default function ServantPortal() {
   }, [isServantPortalOpen, filterDate]);
 
   // Helper to check if a booking has been evaluated by the current servant
-  const getServantEvaluation = (bookingId: string) => {
+  const getServantEvaluation = useCallback((bookingId: string) => {
     if (!user || !user.email) return undefined;
     const email = user.email.toLowerCase();
     return evaluations.find(
       (e) => e.bookingId === bookingId && e.servantEmail.toLowerCase() === email
     );
-  };
+  }, [user, evaluations]);
 
-  const handleOpenGrading = (booking: Booking) => {
+  const handleOpenGrading = useCallback((booking: Booking) => {
     setSelectedBooking(booking);
     const existingEval = getServantEvaluation(booking.id);
 
@@ -134,7 +134,7 @@ export default function ServantPortal() {
     setGrades(initialGrades);
     setComments(existingEval?.comments || '');
     setIsGradingOpen(true);
-  };
+  }, [evaluationFields, getServantEvaluation]);
 
   // Listen for deep-linked bookings from the calendar EventModal
   useEffect(() => {
@@ -143,7 +143,7 @@ export default function ServantPortal() {
       handleOpenGrading(gradingBooking);
       setGradingBooking(null); // Clear trigger
     }
-  }, [gradingBooking, setGradingBooking]);
+  }, [gradingBooking, setGradingBooking, handleOpenGrading]);
 
   if (!isServantPortalOpen || !isServant || !user) return null;
 
@@ -302,6 +302,36 @@ export default function ServantPortal() {
                           الأعضاء: <span className="text-slate-700 font-bold">{booking.teamMembers?.map(m => m.name).join('، ') || 'لا يوجد أعضاء'}</span>
                         </p>
                       </div>
+
+                      {/* Servant evaluations list breakdown */}
+                      {(() => {
+                        const bookingEvaluations = evaluations.filter(e => e.bookingId === booking.id);
+                        if (bookingEvaluations.length === 0) return null;
+                        return (
+                          <div className="mt-2 mb-4 pt-3 border-t border-slate-100/70 space-y-2">
+                            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">تقييمات المقيمين ({bookingEvaluations.length}):</span>
+                            <div className="space-y-1.5 max-h-24 overflow-y-auto pr-0.5">
+                              {bookingEvaluations.map((ev) => {
+                                const score = Object.values(ev.grades).reduce((a, b) => a + b, 0);
+                                const isSelf = ev.servantEmail.toLowerCase() === user.email?.toLowerCase();
+                                return (
+                                  <div key={ev.id} className={`flex items-center justify-between text-xs p-2 rounded-xl border ${
+                                    isSelf 
+                                      ? 'bg-indigo-50/50 border-indigo-150 text-indigo-950 font-bold' 
+                                      : 'bg-slate-50/60 border-slate-150/70 text-slate-700'
+                                  }`}>
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="w-5 h-5 rounded-full bg-slate-200/70 text-slate-650 flex items-center justify-center text-[9px] font-black shrink-0">👤</span>
+                                      <span className="truncate">{ev.servantName} {isSelf && '(أنت)'}</span>
+                                    </div>
+                                    <span className="font-black shrink-0">{score} <span className="text-[10px] font-normal text-slate-400">/ {totalMaxScore}</span></span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Action buttons */}
@@ -395,7 +425,6 @@ export default function ServantPortal() {
                 {evaluationFields && evaluationFields.length > 0 ? (
                   evaluationFields.map((field) => {
                     const currentValue = grades[field.id] !== undefined ? grades[field.id] : 0;
-                    const isSmallMark = field.maxMark <= 10;
                     
                     return (
                       <div key={field.id} className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-slate-250 transition-all duration-200 space-y-4">

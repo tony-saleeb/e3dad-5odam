@@ -12,7 +12,16 @@
     "FDFF",
     "FEFF",
     "FB50",
-    "FE70"
+    "FE70",
+    "exceljs",
+    "evals",
+    "argb",
+    "segoe",
+    "openxmlformats",
+    "officedocument",
+    "spreadsheetml",
+    "creativ",
+    "naskh"
   ],
   "enableFiletypes": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
   "patterns": [
