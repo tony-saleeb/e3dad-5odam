@@ -296,9 +296,9 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="space-y-2.5 max-h-[35vh] overflow-y-auto pr-1 scrollbar-hide">
                     {allowedUsers.map(u => (
-                      <div key={u.id} className="flex items-center justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 px-4 py-3 rounded-2xl transition-all duration-200 hover:shadow-2xs">
+                      <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 sm:px-4 sm:py-3 rounded-2xl transition-all duration-200 hover:shadow-2xs gap-3.5 sm:gap-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm ${
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm shrink-0 ${
                             u.role === 'admin' 
                               ? 'bg-slate-700 text-white shadow-slate-700/10' 
                               : u.role === 'servant'
@@ -307,13 +307,26 @@ export default function AdminDashboard() {
                           }`}>
                             {u.name[0]}
                           </div>
-                          <div>
-                            <p className="font-black text-slate-800 text-sm leading-normal pb-0.5">{u.name}</p>
-                            <p className="text-slate-400 text-xs font-semibold leading-normal">{u.email}</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{u.name}</p>
+                              {/* Mobile-only Role Badge */}
+                              <span className={`inline-block sm:hidden px-2 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
+                                u.role === 'admin' 
+                                  ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
+                                  : u.role === 'servant'
+                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
+                                    : 'bg-slate-50 text-slate-650 border-slate-150/60'
+                              }`}>
+                                {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : 'قائد فريق'}
+                              </span>
+                            </div>
+                            <p className="text-slate-450 text-xs font-semibold leading-normal truncate" dir="ltr">{u.email}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
+                        <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-slate-100/50 pt-2.5 sm:pt-0 sm:border-0">
+                          {/* Desktop-only Role Badge */}
+                          <span className={`hidden sm:inline-block px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 ${
                             u.role === 'admin' 
                               ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
                               : u.role === 'servant'
@@ -325,9 +338,9 @@ export default function AdminDashboard() {
                           <button
                             onClick={() => handleRemoveUser(u.id)}
                             disabled={removingId === u.id}
-                            className="text-slate-500 hover:text-slate-800 text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-all border border-slate-200/40 hover:border-slate-300 cursor-pointer"
+                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center active:scale-95 shadow-2xs"
                           >
-                            {removingId === u.id ? '...' : 'حذف'}
+                            {removingId === u.id ? 'جاري الحذف...' : 'حذف'}
                           </button>
                         </div>
                       </div>
