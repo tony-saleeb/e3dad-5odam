@@ -2,45 +2,30 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useBookings } from '@/hooks/useBookings';
 
-// Mock Firebase
-vi.mock('firebase/firestore', () => ({
-  collection: vi.fn(),
-  query: vi.fn(),
-  orderBy: vi.fn(),
-  onSnapshot: vi.fn((q, onSuccess) => {
-    onSuccess({
-      docs: [
-        {
-          id: '1',
-          data: () => ({
-            title: 'Test Event',
-            date: '2026-01-15',
-            status: 'approved',
-            serviceId: 'service1',
-            roomId: 'room1',
-            startTime: '10:00',
-            endTime: '12:00',
-            requesterName: 'John',
-            requesterEmail: 'john@example.com',
-          }),
-        },
-      ],
-    });
-    return vi.fn();
-  }),
-  addDoc: vi.fn(),
-  updateDoc: vi.fn(),
-  deleteDoc: vi.fn(),
-  doc: vi.fn(),
-  serverTimestamp: vi.fn(),
-  Timestamp: {
-    fromDate: vi.fn(),
-  },
-  where: vi.fn(),
-}));
-
-vi.mock('@/lib/firebase', () => ({
-  db: {},
+// Mock BookingsContext
+vi.mock('@/contexts/BookingsContext', () => ({
+  useBookingsContext: vi.fn(() => ({
+    bookings: [
+      {
+        id: '1',
+        title: 'Test Event',
+        date: '2026-01-15',
+        status: 'approved',
+        serviceId: 'service1',
+        roomId: 'room1',
+        startTime: '10:00',
+        endTime: '12:00',
+        requesterName: 'John',
+        requesterEmail: 'john@example.com',
+      },
+    ],
+    loading: false,
+    error: null,
+    addBooking: vi.fn(),
+    updateBookingStatus: vi.fn(),
+    deleteBooking: vi.fn(),
+    refreshBookings: vi.fn(),
+  })),
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({

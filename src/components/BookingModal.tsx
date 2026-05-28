@@ -15,7 +15,7 @@ export default function BookingModal() {
   const { isAdmin, user } = useAuth();
   const { settings } = useSettings();
   const { timePeriods, teamMemberLimits } = settings;
-  const { addBooking, isPeriodBooked, hasUserAlreadyBooked } = useBookings();
+  const { addBooking, isPeriodBooked, hasUserAlreadyBooked, bookings } = useBookings();
   const {
     isBookingModalOpen,
     closeBookingModal,
@@ -42,6 +42,57 @@ export default function BookingModal() {
   const [newMember, setNewMember] = useState({ name: '', id: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Admin-only auto-fill states
+  interface AllowedUser {
+    email: string;
+    name: string;
+    role: 'user' | 'admin';
+    teamDetails?: {
+      churchName: string;
+      teamName: string;
+      title: string;
+      ageGroup: string;
+      teamMembers: TeamMember[];
+    };
+  }
+  const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AllowedUser | null>(null);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+
+  const filteredAllowedUsers = allowedUsers.filter(u => {
+    if (!u.teamDetails) return false;
+    const alreadyBooked = bookings.some(b => 
+      (b.requesterEmail || '').toLowerCase() === u.email.toLowerCase() && 
+      b.status !== 'rejected'
+    );
+    return !alreadyBooked;
+  });
+
+  useEffect(() => {
+    const fetchAllowedUsers = async () => {
+      if (!isBookingModalOpen || !isAdmin) return;
+      setLoadingUsers(true);
+      try {
+        const snap = await getDocs(collection(db, 'allowed_users'));
+        const users = snap.docs.map(d => ({
+          email: d.id,
+          ...d.data(),
+        })) as AllowedUser[];
+        // Filter users who have teamDetails
+        const usersWithDetails = users.filter(u => u.teamDetails);
+        setAllowedUsers(usersWithDetails);
+      } catch (err) {
+        console.error('Error fetching allowed users in BookingModal:', err);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchAllowedUsers();
+  }, [isBookingModalOpen, isAdmin]);
+
   useEffect(() => {
     if (isBookingModalOpen) {
       const isNormalUser = user?.role === 'user' && user?.teamDetails;
@@ -58,6 +109,9 @@ export default function BookingModal() {
         endTime: selectedEndTime || '',
       });
       setNewMember({ name: '', id: '' });
+      setSelectedUser(null);
+      setUserSearchQuery('');
+      setIsUserDropdownOpen(false);
     }
   }, [isBookingModalOpen, selectedDate, selectedStartTime, selectedEndTime, user]);
 
@@ -102,7 +156,20 @@ export default function BookingModal() {
   };
 
   const handleBack = () => {
-    if (step > 1) setStep(step - 1);
+    if (selectedUser) {
+      setSelectedUser(null);
+      setFormData({
+        ...formData,
+        churchName: '',
+        title: '',
+        teamName: '',
+        ageGroup: '',
+        teamMembers: [],
+      });
+      setStep(1);
+    } else if (step > 1) {
+      setStep(step - 1);
+    }
   };
 
   const { toast } = useToast();
@@ -139,12 +206,13 @@ export default function BookingModal() {
         }
       }
 
-      const primaryLeader = formData.teamMembers[0]?.name || user?.displayName || 'مجهول';
+      const requesterEmail = (isAdmin && selectedUser) ? selectedUser.email.toLowerCase() : (user?.email || '');
+      const primaryLeader = formData.teamMembers[0]?.name || (isAdmin && selectedUser ? selectedUser.name : '') || user?.displayName || 'مجهول';
 
       await addBooking({
         title: formData.title,
         requesterName: primaryLeader,
-        requesterEmail: user?.email || '',
+        requesterEmail: requesterEmail,
         serviceId: 'church-adaptation',
         roomId: 'church-adaptation',
         date: formData.date,
@@ -173,7 +241,7 @@ export default function BookingModal() {
       return;
     }
     if (!newMember.id.trim()) {
-      setErrors({ teamMembers: 'رقم الهوية مطلوب' });
+      setErrors({ teamMembers: 'كود اعداد خدام مطلوب' });
       return;
     }
     if (formData.teamMembers.length >= teamMemberLimits.max) {
@@ -198,6 +266,347 @@ export default function BookingModal() {
 
   const stepTitles = ['البيانات الأساسية', 'أعضاء الفريق', 'مراجعة وتأكيد'];
   const churchColor = getChurchColor(formData.churchName);
+
+  if (isAdmin) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+        {/* Backdrop with modern glassmorphism blur */}
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={closeBookingModal} />
+
+        {/* Main card modal with premium scale-in animation */}
+        <div 
+          className="relative w-full max-w-2xl sm:max-h-[90vh] animate-scale-in transition-all duration-300 z-10 shadow-2xl"
+        >
+          <div className="bg-white rounded-[28px] overflow-hidden border border-slate-100/80 max-h-[85vh] sm:max-h-[88vh] flex flex-col scrollbar-hide shadow-xl">
+
+            {/* Premium Slate Header */}
+            <div className="relative px-6 py-5 bg-linear-to-r from-slate-800 to-slate-900 text-white shadow-lg overflow-hidden shrink-0">
+              <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-size-[14px_24px]" />
+              <div className="relative flex justify-between items-center gap-3">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-normal pb-1 drop-shadow-xs">
+                    {selectedUser ? "تحديد موعد الحجز للخادم" : "اختيار خادم لحجز موعد له"}
+                  </h2>
+                  <p className="text-slate-300 text-[11px] font-bold mt-0.5">
+                    {selectedUser ? `حجز موعد للخادم: ${selectedUser.name}` : "اختر خادماً مسجلاً من القائمة لتأكيد حجز موعد له مباشرة"}
+                  </p>
+                </div>
+                <button 
+                  onClick={closeBookingModal} 
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/30 text-white font-medium text-lg shrink-0 transition-all duration-200 active:scale-90 cursor-pointer"
+                  aria-label="close"
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto scrollbar-hide" dir="rtl">
+              {!selectedUser ? (
+                /* 1. LIST OF USERS STATE */
+                <div className="p-6 space-y-4 animate-fade-in flex flex-col h-full max-h-[60vh]">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      className="w-full px-5 py-3.5 border border-slate-200 rounded-2xl focus:outline-none focus:border-slate-800 focus:ring-4 focus:ring-slate-800/5 shadow-sm font-medium text-slate-800 placeholder-slate-400 transition-all text-sm pl-10"
+                      placeholder={loadingUsers ? "جاري تحميل قائمة الخدام..." : "ابحث عن خادم بالاسم أو البريد الإلكتروني..."}
+                      disabled={loadingUsers}
+                    />
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[42vh] scrollbar-hide mt-1">
+                    {loadingUsers ? (
+                      <div className="text-center py-12">
+                        <div className="w-8 h-8 border-4 border-slate-800 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                        <p className="text-slate-400 text-xs font-bold">جاري تحميل قائمة الخدام...</p>
+                      </div>
+                    ) : filteredAllowedUsers.filter(u => 
+                      u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+                      u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+                    ).length === 0 ? (
+                      <div className="text-center py-16 border border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+                        <svg className="w-10 h-10 text-slate-300 mx-auto mb-3 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.109A11.978 11.978 0 0112 20.25a11.962 11.962 0 01-3-1.013v-.11c0-1.113.285-2.16.786-3.07M7 10.375a3 3 0 11-6 0 3 3 0 016 0zM1.499 15.3a2.5 2.5 0 014.5-1.5M10.25 6.25a2.625 2.625 0 115.25 0 2.625 2.625 0 01-5.25 0zM16.5 10.25a2.625 2.625 0 115.25 0 2.625 2.625 0 01-5.25 0z" />
+                        </svg>
+                        <p className="text-slate-500 text-sm font-black">لا يوجد خدام متاحين للحجز حالياً</p>
+                        <p className="text-slate-400 text-xs font-bold mt-1">جميع الخدام المسجلين لديهم حجز مفعل بالفعل، أو لم يقوموا بتعبئة بياناتهم بعد.</p>
+                      </div>
+                    ) : (
+                      filteredAllowedUsers
+                        .filter(u => 
+                          u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+                          u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+                        )
+                        .map((u, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              setSelectedUser(u);
+                              if (u.teamDetails) {
+                                setFormData({
+                                  ...formData,
+                                  churchName: u.teamDetails.churchName || '',
+                                  title: u.teamDetails.title || '',
+                                  teamName: u.teamDetails.teamName || '',
+                                  ageGroup: u.teamDetails.ageGroup || '',
+                                  teamMembers: u.teamDetails.teamMembers || [],
+                                });
+                              }
+                            }}
+                            className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl cursor-pointer hover:border-slate-350 hover:bg-slate-50/50 transition-all duration-200 shadow-2xs hover:shadow-xs active:scale-[0.99]"
+                          >
+                            <div className="flex items-center gap-3.5">
+                              <span className="w-10 h-10 rounded-full bg-slate-750 text-white flex items-center justify-center text-sm font-bold shadow-xs">👤</span>
+                              <div>
+                                <p className="text-slate-800 font-black text-sm leading-normal pb-0.5">{u.name}</p>
+                                <p className="text-slate-400 text-xs font-bold leading-none">{u.email}</p>
+                              </div>
+                            </div>
+                            <div className="text-left shrink-0 flex flex-col gap-1 items-end">
+                              {u.teamDetails?.churchName && (
+                                <span className="inline-block text-[10px] font-black px-2.5 py-1 rounded-lg bg-slate-100 text-slate-750 border border-slate-200/60 leading-none shadow-3xs">
+                                  {u.teamDetails.churchName}
+                                </span>
+                              )}
+                              {u.teamDetails?.teamName && (
+                                <p className="text-[11px] font-bold text-slate-500 leading-none">{u.teamDetails.teamName}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* 2. DATE/TIME SELECTOR & DETAILS VIEW STATE */
+                <div className="p-5 sm:p-6 space-y-5 animate-fade-in">
+                  
+                  {/* Selected User Header Banner */}
+                  <div className="flex items-center justify-between p-4 bg-slate-800 text-white rounded-2xl shadow-md border border-slate-700/30">
+                    <div className="flex items-center gap-3">
+                      <span className="w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center text-sm font-bold shadow-xs">👤</span>
+                      <div>
+                        <p className="text-white text-sm font-black leading-normal pb-0.5">{selectedUser.name}</p>
+                        <p className="text-white/70 text-xs font-bold leading-none">{selectedUser.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedUser(null);
+                        setFormData({
+                          ...formData,
+                          churchName: '',
+                          title: '',
+                          teamName: '',
+                          ageGroup: '',
+                          teamMembers: [],
+                        });
+                      }}
+                      className="text-white hover:text-white/80 text-xs font-black px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all border border-white/15 cursor-pointer active:scale-95 leading-none shadow-3xs"
+                    >
+                      تغيير الخادم
+                    </button>
+                  </div>
+
+                  {/* Creative Date/Time Ticket Badge */}
+                  {formData.date && formData.startTime && (
+                    <div className="flex items-center justify-between p-4 bg-white border border-slate-150 rounded-2xl shadow-2xs hover:border-slate-250 transition-all">
+                      <div className="flex items-center gap-3.5">
+                        <div className={`w-11 h-11 rounded-xl bg-linear-to-r from-slate-700 to-slate-800 text-white flex items-center justify-center shadow-md shrink-0`}>
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">الموعد المختار</p>
+                          <p className="text-sm font-black text-slate-800 mt-0.5">{formData.date}</p>
+                        </div>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">الفترة الزمنية</p>
+                        <span 
+                          dir="ltr"
+                          className="inline-block text-xs font-black mt-1 px-3 py-1 rounded-full bg-slate-50 text-slate-750 border border-slate-200"
+                        >
+                          {formData.startTime} – {formData.endTime}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Date & Time Input Box */}
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4.5 space-y-4 shadow-3xs">
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      تحديد موعد الحجز:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[11px] font-black text-slate-650 block mb-1">التاريخ</label>
+                        <input 
+                          type="date" 
+                          value={formData.date}
+                          onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-855 focus:outline-none focus:border-slate-800 focus:ring-4 focus:ring-slate-800/5 transition-all cursor-pointer shadow-3xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-black text-slate-650 block mb-1">الفترة الزمنية</label>
+                        <select 
+                          value={`${formData.startTime}|${formData.endTime}`}
+                          onChange={(e) => {
+                            const [start, end] = e.target.value.split('|');
+                            setFormData(prev => ({ ...prev, startTime: start, endTime: end }));
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-855 focus:outline-none focus:border-slate-800 focus:ring-4 focus:ring-slate-800/5 transition-all cursor-pointer shadow-3xs"
+                        >
+                          <option value="|">اختر فترة...</option>
+                          {timePeriods.map(p => (
+                            <option key={p.id} value={`${p.startTime}|${p.endTime}`}>
+                              {p.label} ({p.startTime} - {p.endTime})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    {errors.startTime && <p className="text-xs text-red-650 font-black mt-1">{errors.startTime}</p>}
+                  </div>
+
+                  {/* Registered Details Card */}
+                  {selectedUser.teamDetails && (
+                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-2xs">
+                      <h3 className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2 border-b border-slate-50 pb-2">
+                        <span className="w-2 h-5 rounded-full bg-slate-700 inline-block" />
+                        بيانات المشروع المسجلة للخادم
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                        {[
+                          { 
+                            label: 'الكنيسة', 
+                            value: selectedUser.teamDetails.churchName,
+                            icon: (
+                              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
+                            )
+                          },
+                          { 
+                            label: 'المشروع', 
+                            value: selectedUser.teamDetails.title,
+                            icon: (
+                              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 113.536 0V21h2v-2.243a5 5 0 013.536 0z" />
+                              </svg>
+                            )
+                          },
+                          { 
+                            label: 'الفريق', 
+                            value: selectedUser.teamDetails.teamName,
+                            icon: (
+                              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                              </svg>
+                            )
+                          },
+                          { 
+                            label: 'المرحلة العمرية', 
+                            value: selectedUser.teamDetails.ageGroup,
+                            icon: (
+                              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                              </svg>
+                            )
+                          },
+                        ].map(({ label, value, icon }) => (
+                          <div key={label} className="flex items-center gap-3 bg-white border border-slate-100 p-3 rounded-2xl shadow-2xs hover:border-slate-200 transition-all">
+                            <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
+                              {icon}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wide leading-normal">{label}</span>
+                              <span className="text-slate-800 font-black text-xs sm:text-sm truncate block mt-0.5 pb-1 leading-normal">{value || '—'}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Team Members List */}
+                      <div className="mt-5 pt-4 border-t border-slate-100">
+                        <div className="flex items-center gap-1.5 mb-3">
+                          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          <span className="text-xs font-black text-slate-700 tracking-wider">أعضاء الفريق ({selectedUser.teamDetails.teamMembers.length})</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 max-h-30 overflow-y-auto pr-1">
+                          {selectedUser.teamDetails.teamMembers.map((m, i) => (
+                            <div key={i} className="bg-slate-50/70 border border-slate-100 text-slate-700 text-xs font-bold pl-3 pr-2 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 hover:bg-slate-50 hover:border-slate-200 transition-all duration-200 cursor-default">
+                              <span className="w-5 h-5 rounded-full bg-slate-700 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm">
+                                {i + 1}
+                              </span>
+                              <span>{m.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions (Only visible in Selected state for Admins) */}
+            {selectedUser && (
+              <div className="px-6 py-4 bg-slate-50/40 flex gap-3 border-t border-slate-100 shrink-0 animate-fade-in" dir="rtl">
+                <button
+                  onClick={() => {
+                    setSelectedUser(null);
+                    setFormData({
+                      ...formData,
+                      churchName: '',
+                      title: '',
+                      teamName: '',
+                      ageGroup: '',
+                      teamMembers: [],
+                    });
+                  }}
+                  disabled={submitting}
+                  className="flex-1 py-3.5 px-6 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl text-slate-650 font-bold transition-all disabled:opacity-50 cursor-pointer active:scale-95 text-xs text-center shadow-3xs"
+                >
+                  إلغاء وتغيير الخادم
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting || !formData.date || !formData.startTime}
+                  className="flex-1 py-3.5 px-6 bg-linear-to-r from-slate-800 to-slate-900 hover:brightness-105 text-white font-black rounded-xl shadow-lg disabled:opacity-50 disabled:brightness-100 disabled:shadow-none transition-all flex items-center justify-center gap-2 text-xs cursor-pointer active:scale-95"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      جاري الإرسال...
+                    </>
+                  ) : 'تأكيد الحجز للخادم ✓'}
+                </button>
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
@@ -237,6 +646,126 @@ export default function BookingModal() {
             {/* STEP 1: Basic Data */}
             {step === 1 && (
               <div className="p-5 sm:p-6 space-y-5 animate-fade-in">
+                {/* Admin Select User to Autofill */}
+                {isAdmin && (
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4.5 space-y-3.5 shadow-2xs">
+                    <label className="block text-sm font-black text-slate-700">اختيار خادم مسجل لتعبئة البيانات تلقائياً</label>
+                    <div className="relative">
+                      {selectedUser ? (
+                        <div className="flex items-center justify-between p-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <span className="w-9 h-9 rounded-full bg-slate-700 text-white flex items-center justify-center text-sm font-bold">👤</span>
+                            <div>
+                              <p className="text-slate-800 text-sm font-black">{selectedUser.name}</p>
+                              <p className="text-slate-500 text-xs font-bold mt-0.5">{selectedUser.email}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedUser(null);
+                              setFormData({
+                                ...formData,
+                                churchName: '',
+                                title: '',
+                                teamName: '',
+                                ageGroup: '',
+                                teamMembers: [],
+                              });
+                            }}
+                            className="text-slate-600 hover:text-slate-800 text-xs font-black px-3.5 py-2 rounded-xl hover:bg-slate-50 border border-slate-200 transition-all cursor-pointer shadow-3xs active:scale-95"
+                          >
+                            تغيير / تعبئة يدوية
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={userSearchQuery}
+                              onChange={(e) => {
+                                setUserSearchQuery(e.target.value);
+                                setIsUserDropdownOpen(true);
+                              }}
+                              onFocus={() => setIsUserDropdownOpen(true)}
+                              className="w-full px-5 py-3.5 border border-slate-200 rounded-2xl focus:outline-none focus:border-slate-800 focus:ring-4 focus:ring-slate-800/5 shadow-sm font-medium text-slate-800 placeholder-slate-400 transition-all text-sm pl-10"
+                              placeholder={loadingUsers ? "جاري تحميل قائمة الخدام..." : "ابحث عن خادم بالاسم أو البريد الإلكتروني..."}
+                              disabled={loadingUsers}
+                            />
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                              </svg>
+                            </div>
+                          </div>
+
+                          {/* Users dropdown list */}
+                          {isUserDropdownOpen && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setIsUserDropdownOpen(false)} />
+                              <div className="absolute z-50 mt-2 w-full bg-white border border-slate-200 rounded-2xl shadow-xl max-h-60 overflow-y-auto animate-scale-in p-1.5">
+                                {filteredAllowedUsers.filter(u => 
+                                  u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+                                  u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+                                ).length === 0 ? (
+                                  <div className="text-center py-6 text-slate-400 text-sm font-bold">
+                                    لا يوجد خدام مسجلين يطابقون البحث
+                                  </div>
+                                ) : (
+                                  filteredAllowedUsers
+                                    .filter(u => 
+                                      u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+                                      u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+                                    )
+                                    .map((u, idx) => (
+                                      <div
+                                        key={idx}
+                                        onClick={() => {
+                                          setSelectedUser(u);
+                                          setIsUserDropdownOpen(false);
+                                          setUserSearchQuery('');
+                                          if (u.teamDetails) {
+                                            setFormData({
+                                              ...formData,
+                                              churchName: u.teamDetails.churchName || '',
+                                              title: u.teamDetails.title || '',
+                                              teamName: u.teamDetails.teamName || '',
+                                              ageGroup: u.teamDetails.ageGroup || '',
+                                              teamMembers: u.teamDetails.teamMembers || [],
+                                            });
+                                            // Jump directly to Step 3 for quick booking!
+                                            setStep(3);
+                                          }
+                                        }}
+                                        className="flex items-center justify-between px-4 py-3.5 rounded-xl cursor-pointer transition-all hover:bg-slate-50 text-slate-800"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <span className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">👤</span>
+                                          <div>
+                                            <p className="text-slate-800 font-black text-sm">{u.name}</p>
+                                            <p className="text-slate-400 text-[11px] font-bold mt-0.5">{u.email}</p>
+                                          </div>
+                                        </div>
+                                        <div className="text-left shrink-0">
+                                          {u.teamDetails?.churchName && (
+                                            <span className="inline-block text-[10px] font-black px-2.5 py-1 rounded-lg bg-slate-100 text-slate-650 border border-slate-200/60">
+                                              {u.teamDetails.churchName}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Church Name */}
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">اسم الكنيسة *</label>
@@ -354,7 +883,7 @@ export default function BookingModal() {
                       value={newMember.id}
                       onChange={(e) => setNewMember({ ...newMember, id: e.target.value })}
                       className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 bg-white text-sm"
-                      placeholder="رقم الهوية"
+                      placeholder="كود اعداد خدام"
                       onKeyDown={(e) => e.key === 'Enter' && addMember()}
                     />
                     <button
@@ -382,7 +911,7 @@ export default function BookingModal() {
                         </span>
                         <div>
                           <p className="text-slate-800 text-sm font-black">{member.name}</p>
-                          <p className="text-slate-400 text-xs font-bold mt-0.5">الهوية: {member.id}</p>
+                          <p className="text-slate-400 text-xs font-bold mt-0.5">كود اعداد خدام: {member.id}</p>
                         </div>
                       </div>
                       <button

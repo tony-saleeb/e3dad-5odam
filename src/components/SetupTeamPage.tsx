@@ -70,7 +70,7 @@ export default function SetupTeamPage() {
       return;
     }
     if (!newMember.id.trim()) {
-      setErrors({ teamMembers: 'رقم الهوية مطلوب' });
+      setErrors({ teamMembers: 'كود اعداد خدام مطلوب' });
       return;
     }
     if (formData.teamMembers.length >= teamMemberLimits.max) {
@@ -286,7 +286,7 @@ export default function SetupTeamPage() {
                       value={newMember.id}
                       onChange={(e) => setNewMember({ ...newMember, id: e.target.value })}
                       className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 bg-white text-sm"
-                      placeholder="الرقم القومي (١٤ رقم)"
+                      placeholder="كود اعداد خدام"
                       onKeyDown={(e) => e.key === 'Enter' && addMember()}
                     />
                     <button
@@ -310,7 +310,7 @@ export default function SetupTeamPage() {
                         </span>
                         <div>
                           <p className="text-slate-800 text-sm font-bold">{member.name}</p>
-                          <p className="text-slate-400 text-xs">رقم الهوية: {member.id}</p>
+                          <p className="text-slate-400 text-xs">كود اعداد خدام: {member.id}</p>
                         </div>
                       </div>
                       <button

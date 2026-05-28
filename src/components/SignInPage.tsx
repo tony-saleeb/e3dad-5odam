@@ -596,11 +596,6 @@ export default function SignInPage() {
               </div>
             </div>
 
-            <div className="left-badge">
-              <div className="left-badge-dot" />
-              نظام الحجوزات
-            </div>
-
             <h2 className="left-title">
               أسرة إعداد
               <br />
