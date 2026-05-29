@@ -447,7 +447,7 @@ export default function BookingModal() {
                   </div>
 
                   {/* Creative Date/Time Ticket Badge */}
-                  {formData.date && formData.startTime && (
+                  {formData.date && (
                     <div className="flex items-center justify-between p-4 bg-white border border-slate-150 rounded-2xl shadow-2xs hover:border-slate-250 transition-all">
                       <div className="flex items-center gap-3.5">
                         <div className={`w-11 h-11 rounded-xl bg-linear-to-r from-slate-700 to-slate-800 text-white flex items-center justify-center shadow-md shrink-0`}>
@@ -460,56 +460,27 @@ export default function BookingModal() {
                           <p className="text-sm font-black text-slate-800 mt-0.5">{formData.date}</p>
                         </div>
                       </div>
-                      <div className="text-left">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">الفترة الزمنية</p>
-                        <span 
-                          dir="ltr"
-                          className="inline-block text-xs font-black mt-1 px-3 py-1 rounded-full bg-slate-50 text-slate-750 border border-slate-200"
-                        >
-                          {formData.startTime} – {formData.endTime}
-                        </span>
-                      </div>
                     </div>
                   )}
 
-                  {/* Date & Time Input Box */}
-                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4.5 space-y-4 shadow-3xs">
-                    <p className="text-sm font-black text-slate-800 flex items-center gap-2">
+                  {/* Date & Time Interactive Block Visualizer */}
+                  <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 space-y-5 shadow-3xs animate-fade-in">
+                    <p className="text-sm font-black text-slate-800 flex items-center gap-2 border-b border-slate-200/60 pb-3">
                       <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      تحديد موعد الحجز:
+                      تحديد موعد الحجز
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[11px] font-black text-slate-650 block mb-1">التاريخ</label>
-                        <input 
-                          type="date" 
-                          value={formData.date}
-                          onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-855 focus:outline-none focus:border-slate-800 focus:ring-4 focus:ring-slate-800/5 transition-all cursor-pointer shadow-3xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-black text-slate-650 block mb-1">الفترة الزمنية</label>
-                        <select 
-                          value={`${formData.startTime}|${formData.endTime}`}
-                          onChange={(e) => {
-                            const [start, end] = e.target.value.split('|');
-                            setFormData(prev => ({ ...prev, startTime: start, endTime: end }));
-                          }}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-855 focus:outline-none focus:border-slate-800 focus:ring-4 focus:ring-slate-800/5 transition-all cursor-pointer shadow-3xs"
-                        >
-                          <option value="|">اختر فترة...</option>
-                          {timePeriods.map(p => (
-                            <option key={p.id} value={`${p.startTime}|${p.endTime}`}>
-                              {p.label} ({p.startTime} - {p.endTime})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    
+                    <div>
+                      <label className="text-[11px] font-black text-slate-650 block mb-2">1. حدد التاريخ</label>
+                      <input 
+                        type="date" 
+                        value={formData.date}
+                        onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value, startTime: '', endTime: '' }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-800 focus:ring-4 focus:ring-slate-800/5 transition-all cursor-pointer shadow-3xs"
+                      />
                     </div>
-                    {errors.startTime && <p className="text-xs text-red-650 font-black mt-1">{errors.startTime}</p>}
                   </div>
 
                   {/* Registered Details Card */}
@@ -549,7 +520,7 @@ export default function BookingModal() {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={submitting || !formData.date || !formData.startTime}
+                  disabled={submitting || !formData.date}
                   className="flex-1 py-3.5 px-6 bg-linear-to-r from-slate-800 to-slate-900 hover:brightness-105 text-white font-black rounded-xl shadow-lg disabled:opacity-50 disabled:brightness-100 disabled:shadow-none transition-all flex items-center justify-center gap-2 text-xs cursor-pointer active:scale-95"
                 >
                   {submitting ? (
@@ -898,54 +869,33 @@ export default function BookingModal() {
             {/* STEP 3: Review + Confirmation */}
             {step === 3 && (
               <div className="p-5 sm:p-6 space-y-4 animate-fade-in">
-                {/* Date/Time Pickers if missing */}
-                {(!formData.date || !formData.startTime) && (
-                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 space-y-4 mb-4">
-                    <p className="text-sm font-bold text-amber-850 flex items-center gap-2">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {(!formData.date) && (
+                  <div className="bg-amber-50 border border-amber-200/60 rounded-2xl p-5 space-y-5 shadow-3xs animate-fade-in mb-4">
+                    <p className="text-sm font-black text-amber-800 flex items-center gap-2 border-b border-amber-200/60 pb-3">
+                      <svg className="w-5 h-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      يرجى تحديد الموعد:
+                      يرجى تحديد التاريخ
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] font-bold text-amber-700 block mb-1">التاريخ</label>
-                        <input 
-                          type="date" 
-                          value={formData.date}
-                          onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                          className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-amber-700 block mb-1">الفترة الزمنية</label>
-                        <select 
-                          value={`${formData.startTime}|${formData.endTime}`}
-                          onChange={(e) => {
-                            const [start, end] = e.target.value.split('|');
-                            setFormData(prev => ({ ...prev, startTime: start, endTime: end }));
-                          }}
-                          className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                        >
-                          <option value="|">اختر فترة...</option>
-                          {timePeriods.map(p => (
-                            <option key={p.id} value={`${p.startTime}|${p.endTime}`}>
-                              {p.label} ({p.startTime} - {p.endTime})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    
+                    <div>
+                      <label className="text-[11px] font-black text-amber-800 block mb-2">اختر التاريخ</label>
+                      <input 
+                        type="date" 
+                        value={formData.date}
+                        onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                        className="w-full bg-white border border-amber-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all cursor-pointer shadow-3xs"
+                      />
                     </div>
-                    {errors.startTime && <p className="text-xs text-red-600 font-bold">{errors.startTime}</p>}
                   </div>
                 )}
 
-                {/* Creative Date/Time Ticket Badge */}
-                {formData.date && formData.startTime && (
-                  <div className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl shadow-2xs hover:border-slate-200 transition-all">
+                {/* Date Display */}
+                {formData.date && (
+                  <div className="flex items-center justify-between p-4 bg-white border border-slate-150 rounded-2xl shadow-2xs hover:border-slate-250 transition-all mb-4">
                     <div className="flex items-center gap-3.5">
                       <div className={`w-11 h-11 rounded-xl ${
-                        churchColor.gradient || 'bg-linear-to-r from-emerald-500 to-teal-600'
+                        churchColor.gradient || 'bg-linear-to-r from-emerald-600 to-teal-700'
                       } text-white flex items-center justify-center shadow-md shrink-0`}>
                         <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -955,17 +905,6 @@ export default function BookingModal() {
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">الموعد المختار</p>
                         <p className="text-sm font-black text-slate-800 mt-0.5">{formData.date}</p>
                       </div>
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">الفترة الزمنية</p>
-                      <span 
-                        dir="ltr"
-                        className={`inline-block text-xs font-black mt-1 px-3 py-1 rounded-full ${
-                          churchColor.badge || 'bg-emerald-50 text-emerald-700'
-                        } border border-current/10`}
-                      >
-                        {formData.startTime} – {formData.endTime}
-                      </span>
                     </div>
                   </div>
                 )}
@@ -1008,7 +947,7 @@ export default function BookingModal() {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={submitting || !formData.date || !formData.startTime}
+                disabled={submitting || !formData.date}
                 className={`flex-1 py-3.5 px-6 ${
                   churchColor.gradient || 'bg-linear-to-r from-emerald-600 to-teal-600'
                 } hover:brightness-105 text-white font-black rounded-xl shadow-lg disabled:opacity-50 disabled:brightness-100 disabled:shadow-none transition-all flex items-center justify-center gap-2 text-xs cursor-pointer active:scale-95`}

@@ -31,6 +31,7 @@ interface AuthContextType {
   canCreateBooking: boolean;
   canSeePending: boolean;
   authError: string | null;
+  lastFailedEmail: string | null;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateTeamDetails: (details: TeamDetails) => Promise<boolean>;
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [lastFailedEmail, setLastFailedEmail] = useState<string | null>(null);
 
   useEffect(() => {
     let unsubUserDoc: (() => void) | null = null;
@@ -73,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Check hardcoded admin fallback
             const isHardcodedAdmin = ADMIN_EMAILS.includes(email);
             if (!isHardcodedAdmin) {
+              setLastFailedEmail(email);
               await firebaseSignOut(auth);
               setAuthError('هذا البريد الإلكتروني غير مصرح له بالدخول. يرجى التواصل مع المسؤول.');
               setUser(null);
@@ -172,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     canCreateBooking: user?.role === 'user' || user?.role === 'admin',
     canSeePending: isAdmin,
     authError,
+    lastFailedEmail,
     signInWithGoogle,
     signOut,
     updateTeamDetails,

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, setDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, setDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, query, where } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
 import { getChurchColor } from '@/data/initialData';
@@ -28,6 +29,16 @@ interface Evaluation {
   createdAt: string;
 }
 
+interface AccessRequest {
+  id: string;
+  email: string;
+  name: string;
+  churchName: string;
+  teamName: string;
+  status: string;
+  createdAt: unknown;
+}
+
 export default function AdminDashboard() {
   const { isAdmin } = useAuth();
   const { isAdminDashboardOpen, closeAdminDashboard } = useSchedulerStore();
@@ -40,7 +51,7 @@ export default function AdminDashboard() {
 
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'archive'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'archive' | 'requests' | 'leaderboard' | 'analytics'>('users');
 
   // Restoration and archive state
   const [restoringBookingId, setRestoringBookingId] = useState<string | null>(null);
@@ -54,6 +65,18 @@ export default function AdminDashboard() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  // Confirmation dialog state
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
+  const [confirmRestoreBooking, setConfirmRestoreBooking] = useState<string | null>(null);
+
+  // Access requests state
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+
+  // Leaderboard state
+  const [leaderboardSort, setLeaderboardSort] = useState<string>('total');
 
   // Settings local state for editing
   const [editingSettings, setEditingSettings] = useState(settings);
@@ -107,8 +130,62 @@ export default function AdminDashboard() {
     if (isAdminDashboardOpen && isAdmin) {
       fetchUsers();
       fetchEvaluations();
+      fetchAccessRequests();
     }
   }, [isAdminDashboardOpen, isAdmin]);
+
+  // Real-time listener for access requests
+  const fetchAccessRequests = () => {
+    setLoadingRequests(true);
+    const q = query(collection(db, 'access_requests'), where('status', '==', 'pending'));
+    const unsub = onSnapshot(q, (snap) => {
+      const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() })) as AccessRequest[];
+      setAccessRequests(reqs);
+      setLoadingRequests(false);
+    }, () => setLoadingRequests(false));
+    return unsub;
+  };
+
+  const handleApproveRequest = async (req: AccessRequest) => {
+    setProcessingRequestId(req.id);
+    try {
+      // Provision user in allowed_users
+      await setDoc(doc(db, 'allowed_users', req.email.toLowerCase()), {
+        email: req.email.toLowerCase(),
+        name: req.name,
+        role: 'user' as const,
+        created_at: new Date().toISOString(),
+        teamDetails: {
+          churchName: req.churchName,
+          teamName: req.teamName,
+          title: '',
+          ageGroup: '',
+          teamMembers: [],
+        },
+      });
+      // Update request status
+      await updateDoc(doc(db, 'access_requests', req.id), { status: 'approved' });
+      await fetchUsers();
+      
+      await fetchUsers();
+    } catch (err) {
+      console.error('Error approving request:', err);
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
+  const handleRejectRequest = async (req: AccessRequest) => {
+    setProcessingRequestId(req.id);
+    try {
+      await deleteDoc(doc(db, 'access_requests', req.id));
+      await deleteDoc(doc(db, 'access_requests', req.id));
+    } catch (err) {
+      console.error('Error rejecting request:', err);
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
 
   const handleAddUser = async () => {
     setAddError('');
@@ -145,14 +222,22 @@ export default function AdminDashboard() {
       console.error('Error removing user:', err);
     } finally {
       setRemovingId(null);
+      setConfirmDeleteUser(null);
     }
   };
 
   const handleExportCSV = async () => {
     try {
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Not authenticated');
+
       const res = await fetch('/api/export-bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ 
           bookings,
           evaluations,
@@ -229,6 +314,9 @@ export default function AdminDashboard() {
                   { id: 'users', label: 'المستخدمون' },
                   { id: 'bookings', label: 'سجل المشاريع' },
                   { id: 'evaluations', label: 'نتائج التقييم' },
+                  { id: 'requests', label: `طلبات الانضمام${accessRequests.length > 0 ? ` (${accessRequests.length})` : ''}` },
+                  { id: 'leaderboard', label: 'لوحة الصدارة' },
+                  { id: 'analytics', label: 'إحصائيات الأداء' },
                   { id: 'archive', label: 'الأرشيف والملغى' },
                   { id: 'settings', label: 'إعدادات النظام' }
                 ] as const
@@ -346,7 +434,7 @@ export default function AdminDashboard() {
                             {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : 'قائد فريق'}
                           </span>
                           <button
-                            onClick={() => handleRemoveUser(u.id)}
+                            onClick={() => setConfirmDeleteUser(u.id)}
                             disabled={removingId === u.id}
                             className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center active:scale-95 shadow-2xs"
                           >
@@ -467,6 +555,148 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </>
+            )}
+
+            {/* ANALYTICS TAB */}
+            {activeTab === 'analytics' && (
+              <div className="space-y-6 animate-fade-in">
+                <div className="flex items-center gap-3 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-800 text-white flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-800 text-lg">إحصائيات الأداء</h3>
+                    <p className="text-xs text-slate-500 font-bold mt-0.5">نظرة عامة على نشاط المشاريع والحجوزات</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Chart 1: Projects by Church */}
+                  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                    <h4 className="font-black text-slate-700 mb-6 flex items-center gap-2">
+                      <span className="w-2 h-5 rounded-full bg-emerald-500" />
+                      توزيع المشاريع حسب الكنيسة
+                    </h4>
+                    
+                    {(() => {
+                      const churchCounts = bookings.reduce((acc, b) => {
+                        const church = b.churchName || 'غير محدد';
+                        acc[church] = (acc[church] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>);
+                      
+                      const maxCount = Math.max(...Object.values(churchCounts), 1);
+                      const sortedChurches = Object.entries(churchCounts).sort((a, b) => b[1] - a[1]);
+                      
+                      if (sortedChurches.length === 0) return <p className="text-center text-slate-400 py-10">لا توجد بيانات</p>;
+                      
+                      return (
+                        <div className="space-y-4">
+                          {sortedChurches.map(([church, count], idx) => (
+                            <div key={idx} className="space-y-1.5">
+                              <div className="flex justify-between text-xs font-bold text-slate-600">
+                                <span>{church}</span>
+                                <span>{count} مشاريع</span>
+                              </div>
+                              <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-linear-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-1000"
+                                  style={{ width: `${(count / maxCount) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  
+                  {/* Chart 2: Booking Status */}
+                  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                    <h4 className="font-black text-slate-700 mb-6 flex items-center gap-2">
+                      <span className="w-2 h-5 rounded-full bg-indigo-500" />
+                      حالة الحجوزات
+                    </h4>
+                    
+                    {(() => {
+                      const stats = {
+                        approved: bookings.filter(b => b.status === 'approved').length,
+                        pending: bookings.filter(b => b.status === 'pending').length,
+                        rejected: bookings.filter(b => b.status === 'rejected').length
+                      };
+                      
+                      const total = bookings.length || 1;
+                      
+                      return (
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="relative w-48 h-48 mb-6">
+                            <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                              {/* Background Circle */}
+                              <path
+                                className="text-slate-100"
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              {/* Approved */}
+                              <path
+                                className="text-emerald-500"
+                                strokeDasharray={`${(stats.approved / total) * 100}, 100`}
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              {/* Pending (Offset by Approved) */}
+                              <path
+                                className="text-amber-400"
+                                strokeDasharray={`${(stats.pending / total) * 100}, 100`}
+                                strokeDashoffset={`-${(stats.approved / total) * 100}`}
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              {/* Rejected (Offset by Approved + Pending) */}
+                              <path
+                                className="text-rose-500"
+                                strokeDasharray={`${(stats.rejected / total) * 100}, 100`}
+                                strokeDashoffset={`-${((stats.approved + stats.pending) / total) * 100}`}
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-3xl font-black text-slate-800">{bookings.length}</span>
+                              <span className="text-[10px] font-bold text-slate-400">إجمالي الحجوزات</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-4 w-full justify-center">
+                            <div className="flex flex-col items-center">
+                              <span className="w-3 h-3 rounded-full bg-emerald-500 mb-1"></span>
+                              <span className="text-[10px] font-bold text-slate-500">معتمد ({stats.approved})</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                              <span className="w-3 h-3 rounded-full bg-amber-400 mb-1"></span>
+                              <span className="text-[10px] font-bold text-slate-500">الانتظار ({stats.pending})</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                              <span className="w-3 h-3 rounded-full bg-rose-500 mb-1"></span>
+                              <span className="text-[10px] font-bold text-slate-500">مرفوض ({stats.rejected})</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* SETTINGS TAB */}
@@ -1032,19 +1262,7 @@ export default function AdminDashboard() {
                             </div>
 
                             <button
-                              onClick={async () => {
-                                setRestoringBookingId(b.id);
-                                setArchiveError('');
-                                setArchiveSuccess('');
-                                try {
-                                  await restoreBooking(b.id);
-                                  setArchiveSuccess('تمت استعادة الحجز بنجاح وإعادته إلى المخطط الأسبوعي.');
-                                } catch (err) {
-                                  setArchiveError(err instanceof Error ? err.message : 'فشلت استعادة الحجز. يرجى التحقق من توفر الموعد.');
-                                } finally {
-                                  setRestoringBookingId(null);
-                                }
-                              }}
+                              onClick={() => setConfirmRestoreBooking(b.id)}
                               disabled={isRestoring}
                               className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl text-xs transition-all shadow-md shadow-slate-800/10 active:scale-95 disabled:opacity-50 cursor-pointer w-full md:w-auto text-center flex items-center justify-center gap-2 shrink-0"
                             >
@@ -1064,9 +1282,243 @@ export default function AdminDashboard() {
                 )}
               </div>
             )}
+
+            {/* REQUESTS TAB */}
+            {activeTab === 'requests' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="bg-slate-50/50 p-5 rounded-3xl border border-slate-100">
+                  <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+                    <span className="w-1.5 h-4 rounded-full bg-slate-700 inline-block" />
+                    طلبات الانضمام المعلقة
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">
+                    مراجعة واعتماد قادة الفرق الجدد
+                  </p>
+                </div>
+                {loadingRequests ? (
+                  <div className="text-center py-8"><div className="w-8 h-8 border-4 border-slate-800 border-t-transparent rounded-full animate-spin mx-auto" /></div>
+                ) : accessRequests.length === 0 ? (
+                  <div className="text-center py-16 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
+                    لا توجد طلبات معلقة حالياً.
+                  </div>
+                ) : (
+                  <div className="space-y-3.5 max-h-[45vh] overflow-y-auto pr-1 scrollbar-hide">
+                    {accessRequests.map(req => (
+                      <div key={req.id} className="flex flex-col md:flex-row md:items-center justify-between bg-white border border-slate-100 p-5 rounded-3xl gap-4 hover:shadow-2xs transition-all">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{req.name}</p>
+                          <p className="text-slate-450 text-xs font-semibold leading-normal truncate" dir="ltr">{req.email}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                            <span className="px-2 py-1 bg-slate-50 rounded-lg border border-slate-100">الكنيسة: <strong className="text-slate-700">{req.churchName}</strong></span>
+                            <span className="px-2 py-1 bg-slate-50 rounded-lg border border-slate-100">الخدمة: <strong className="text-slate-700">{req.teamName}</strong></span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleApproveRequest(req)}
+                            disabled={processingRequestId === req.id}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95 disabled:opacity-50"
+                          >
+                            {processingRequestId === req.id ? 'جاري...' : 'قبول'}
+                          </button>
+                          <button
+                            onClick={() => handleRejectRequest(req)}
+                            disabled={processingRequestId === req.id}
+                            className="px-4 py-2 bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 font-black rounded-xl text-xs transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                          >
+                            رفض
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* LEADERBOARD TAB */}
+            {activeTab === 'leaderboard' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50/50 p-5 rounded-3xl border border-slate-100 gap-4">
+                  <div>
+                    <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+                      <span className="w-1.5 h-4 rounded-full bg-slate-700 inline-block" />
+                      لوحة الصدارة (للمسؤولين فقط)
+                    </h3>
+                    <p className="text-xs text-slate-400 font-bold mt-1">
+                      ترتيب الفرق بناءً على نقاط التقييم المتراكمة
+                    </p>
+                  </div>
+                  <select
+                    value={leaderboardSort}
+                    onChange={(e) => setLeaderboardSort(e.target.value)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 bg-white text-sm transition-all font-bold text-slate-700 cursor-pointer"
+                  >
+                    <option value="total">الترتيب بالمجموع الكلي</option>
+                    {(settings.evaluationFields || []).map(f => (
+                      <option key={f.id} value={f.id}>الترتيب بـ: {f.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {(() => {
+                  const teamScores: Record<string, { churchName: string, teamName: string, total: number, counts: number, fields: Record<string, number> }> = {};
+                  bookings.forEach(b => {
+                    if (b.status !== 'approved') return;
+                    const evals = evaluations.filter(e => e.bookingId === b.id);
+                    if (evals.length === 0) return;
+                    
+                    const churchName = b.churchName || 'غير معروف';
+                    const teamName = b.title || 'بدون عنوان';
+                    
+                    const key = `${churchName} - ${teamName}`;
+                    if (!teamScores[key]) {
+                      teamScores[key] = { churchName, teamName, total: 0, counts: 0, fields: {} };
+                    }
+                    
+                    // Average for this booking
+                    const bookingAvgTotal = evals.reduce((sum, ev) => sum + Object.values(ev.grades).reduce((a,c)=>a+c,0), 0) / evals.length;
+                    teamScores[key].total += bookingAvgTotal;
+                    teamScores[key].counts += 1;
+                    
+                    (settings.evaluationFields || []).forEach(f => {
+                      if (!teamScores[key].fields[f.id]) teamScores[key].fields[f.id] = 0;
+                      const fieldAvg = evals.reduce((sum, ev) => sum + (ev.grades[f.id] || 0), 0) / evals.length;
+                      teamScores[key].fields[f.id] += fieldAvg;
+                    });
+                  });
+                  
+                  const sortedTeams = Object.values(teamScores).sort((a, b) => {
+                    if (leaderboardSort === 'total') return b.total - a.total;
+                    return (b.fields[leaderboardSort] || 0) - (a.fields[leaderboardSort] || 0);
+                  });
+
+                  if (sortedTeams.length === 0) {
+                    return (
+                      <div className="text-center py-16 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
+                        لا توجد تقييمات كافية لعرض لوحة الصدارة.
+                      </div>
+                    );
+                  }
+
+                  const maxVal = Math.max(...sortedTeams.map(t => leaderboardSort === 'total' ? t.total : t.fields[leaderboardSort] || 0));
+
+                  return (
+                    <div className="space-y-3.5 max-h-[45vh] overflow-y-auto pr-1 scrollbar-hide">
+                      {sortedTeams.map((team, idx) => {
+                        const val = leaderboardSort === 'total' ? team.total : team.fields[leaderboardSort] || 0;
+                        const churchColor = getChurchColor(team.churchName);
+                        
+                        let trophy = '';
+                        if (idx === 0) trophy = '🏆';
+                        else if (idx === 1) trophy = '🥈';
+                        else if (idx === 2) trophy = '🥉';
+                        else trophy = `#${idx + 1}`;
+
+                        return (
+                          <div key={team.teamName} className="bg-white border border-slate-100 p-4 rounded-3xl hover:shadow-2xs transition-all flex flex-col gap-3 relative overflow-hidden">
+                            <div className="flex items-center justify-between z-10 relative">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-black shrink-0 ${idx < 3 ? 'bg-amber-50 text-amber-500' : 'bg-slate-50 text-slate-400'}`}>
+                                  {trophy}
+                                </div>
+                                <div>
+                                  <p className="font-black text-slate-800 text-sm leading-normal">{team.churchName}</p>
+                                  <p className="text-slate-500 text-[11px] font-bold mt-0.5">{team.teamName} • {team.counts} مشاريع مقيمة</p>
+                                </div>
+                              </div>
+                              <div className="text-left">
+                                <p className="font-black text-lg" style={{ color: churchColor.bg }}>{val.toFixed(1)}</p>
+                                <p className="text-[10px] text-slate-400 font-bold">نقطة</p>
+                              </div>
+                            </div>
+                            
+                            <div className="w-full bg-slate-50 rounded-full h-2.5 overflow-hidden z-10 relative">
+                              <div 
+                                className="h-full rounded-full transition-all duration-1000 ease-out"
+                                style={{ 
+                                  width: `${maxVal > 0 ? (val / maxVal) * 100 : 0}%`, 
+                                  backgroundColor: churchColor.bg,
+                                  boxShadow: `0 0 10px ${churchColor.bg}40`
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-transparent to-white/50 pointer-events-none z-0" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
           </div>
         </div>
       </div>
+
+      {/* Delete User Confirmation Modal */}
+      {confirmDeleteUser && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setConfirmDeleteUser(null)} />
+          <div className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-scale-in">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-4 mx-auto">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-center text-lg font-black text-slate-800 mb-2">تأكيد حذف المستخدم</h3>
+            <p className="text-center text-sm text-slate-500 font-bold mb-6">هل أنت متأكد من رغبتك في حذف هذا المستخدم؟ لن يتمكن من الوصول للنظام بعد الآن.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDeleteUser(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all cursor-pointer">إلغاء</button>
+              <button onClick={() => handleRemoveUser(confirmDeleteUser)} className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-white font-black text-sm hover:bg-rose-700 transition-all shadow-md shadow-rose-600/20 active:scale-95 cursor-pointer">
+                {removingId === confirmDeleteUser ? 'جاري...' : 'نعم، احذف'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restore Booking Confirmation Modal */}
+      {confirmRestoreBooking && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setConfirmRestoreBooking(null)} />
+          <div className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-scale-in">
+            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4 mx-auto">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <h3 className="text-center text-lg font-black text-slate-800 mb-2">استعادة الحجز</h3>
+            <p className="text-center text-sm text-slate-500 font-bold mb-6">هل أنت متأكد من رغبتك في استعادة هذا الحجز إلى المخطط الأسبوعي؟</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmRestoreBooking(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all cursor-pointer">إلغاء</button>
+              <button 
+                onClick={async () => {
+                  const bId = confirmRestoreBooking;
+                  setConfirmRestoreBooking(null);
+                  setRestoringBookingId(bId);
+                  setArchiveError('');
+                  setArchiveSuccess('');
+                  try {
+                    await restoreBooking(bId);
+                    setArchiveSuccess('تمت استعادة الحجز بنجاح وإعادته إلى المخطط الأسبوعي.');
+                  } catch (err) {
+                    setArchiveError(err instanceof Error ? err.message : 'فشلت استعادة الحجز.');
+                  } finally {
+                    setRestoringBookingId(null);
+                  }
+                }} 
+                className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer"
+              >
+                نعم، استعد
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

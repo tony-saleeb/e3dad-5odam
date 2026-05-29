@@ -13,8 +13,6 @@ export function useBookings() {
     updateBookingStatus,
     deleteBooking,
     restoreBooking,
-    syncAllBookingsToSheets,
-    syncQueueSize,
     refreshBookings
   } = useBookingsContext();
 
@@ -69,8 +67,6 @@ export function useBookings() {
     updateBookingStatus,
     deleteBooking,
     restoreBooking,
-    syncAllBookingsToSheets,
-    syncQueueSize,
     getBookingsForDate,
     getPendingBookings,
     getUserBookings,
@@ -79,3 +75,4 @@ export function useBookings() {
     refreshBookings
   };
 }
+

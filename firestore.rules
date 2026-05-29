@@ -93,5 +93,30 @@ service cloud.firestore {
       // Admins have full access to manage evaluations
       allow write: if isAdmin();
     }
+
+    // ==========================================
+    // 5. Access Requests Rules (New user onboarding)
+    // ==========================================
+    match /access_requests/{requestId} {
+      // Admins can read, update, delete requests
+      allow read, update, delete: if isAdmin();
+      
+      // Signed-in users can create an access request
+      allow create: if isSignedIn();
+      
+      // Users can read their own requests
+      allow read: if isSignedIn() && resource.data.email.lower() == currentUserEmail();
+    }
+
+    // ==========================================
+    // 6. Notifications Rules (In-app alerts)
+    // ==========================================
+    match /notifications/{notificationId} {
+      // Users can read and update (mark as read) their own notifications
+      allow read, update: if isSignedIn() && resource.data.userId == currentUserEmail();
+      
+      // Admins can create notifications for users
+      allow create: if isAdmin();
+    }
   }
 }

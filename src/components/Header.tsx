@@ -123,10 +123,11 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Mobile profile button */}
-          <div className="relative" ref={mobileRef}>
-            <button
-              onClick={() => setProfileOpen(!profileOpen)}
+          <div className="flex items-center gap-2">
+            {/* Mobile profile button */}
+            <div className="relative" ref={mobileRef}>
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
               className="flex items-center gap-2 p-1 rounded-full"
             >
               {user?.photoURL ? (
@@ -142,6 +143,7 @@ export default function Header() {
             {profileOpen && (
               <ProfileMenu variant="mobile" onClose={() => setProfileOpen(false)} />
             )}
+            </div>
           </div>
         </div>
       </div>

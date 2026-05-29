@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
 
     // Style Header Row
     const headerRow = worksheet.getRow(1);
+    headerRow.height = 25;
     headerRow.eachCell((cell) => {
       cell.fill = {
         type: 'pattern',
@@ -105,7 +106,19 @@ export async function POST(request: NextRequest) {
         size: 11,
       };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF047857' } },
+        left: { style: 'thin', color: { argb: 'FF047857' } },
+        bottom: { style: 'thin', color: { argb: 'FF047857' } },
+        right: { style: 'thin', color: { argb: 'FF047857' } },
+      };
     });
+
+    // Auto-filter
+    worksheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: cols.length }
+    };
 
     // Group evaluations by bookingId
     const evaluationsByBooking = evals.reduce((acc: Record<string, TeamEvaluation[]>, ev: TeamEvaluation) => {
@@ -237,11 +250,164 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Alignment for all content rows
+    // Style Data Rows
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber > 1) {
-         row.eachCell((cell) => {
-          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        // Striped rows (alternate background color)
+        const isEven = rowNumber % 2 === 0;
+        
+        row.eachCell((cell, colNumber) => {
+          // Determine if it's the comments column (which is the last one in detailed mode)
+          const isCommentCol = isDetailed && colNumber === cols.length;
+          
+          cell.alignment = { 
+            horizontal: isCommentCol ? 'right' : 'center', 
+            vertical: 'middle',
+            wrapText: isCommentCol // Wrap text for comments
+          };
+          
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: isEven ? 'FFF3F4F6' : 'FFFFFFFF' } // Gray-100 / White
+          };
+          
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+            left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+            bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+            right: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          };
+          
+          cell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF1F2937' } };
+        });
+      }
+    });
+
+    // === SHEET 2: LEADERBOARD ===
+    const leaderboardSheet = workbook.addWorksheet('لوحة الصدارة');
+    
+    // Setup columns for Leaderboard
+    const lbCols = [
+      { header: 'المركز', key: 'rank', width: 10 },
+      { header: 'الكنيسة', key: 'churchName', width: 25 },
+      { header: 'الفريق / المشروع', key: 'teamName', width: 25 },
+      { header: 'عدد المشاريع المقيمة', key: 'counts', width: 20 },
+    ];
+    
+    fields.forEach((field: EvaluationField) => {
+      lbCols.push({
+        header: `متوسط ${field.name}`,
+        key: `avg_${field.id}`,
+        width: 20,
+      });
+    });
+    
+    lbCols.push({ header: 'المجموع الكلي', key: 'total', width: 20 });
+    leaderboardSheet.columns = lbCols;
+    
+    // Style Leaderboard Header
+    const lbHeaderRow = leaderboardSheet.getRow(1);
+    lbHeaderRow.height = 28;
+    lbHeaderRow.eachCell((cell) => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Slate-900
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Segoe UI', size: 12 };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = {
+        top: { style: 'medium', color: { argb: 'FF334155' } },
+        left: { style: 'medium', color: { argb: 'FF334155' } },
+        bottom: { style: 'medium', color: { argb: 'FF334155' } },
+        right: { style: 'medium', color: { argb: 'FF334155' } },
+      };
+    });
+    
+    leaderboardSheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: lbCols.length }
+    };
+    
+    // Calculate leaderboard scores
+    const teamScores: Record<string, { churchName: string, teamName: string, total: number, counts: number, fields: Record<string, number> }> = {};
+    
+    bookings.forEach((b: Booking) => {
+      if (b.status !== 'approved') return;
+      const bookingEvals = evaluationsByBooking[b.id] || [];
+      if (bookingEvals.length === 0) return;
+      
+      const churchName = b.churchName || 'غير معروف';
+      const teamName = b.title || 'بدون عنوان';
+      const key = `${churchName} - ${teamName}`;
+      
+      if (!teamScores[key]) {
+        teamScores[key] = { churchName, teamName, total: 0, counts: 0, fields: {} };
+      }
+      
+      const bookingAvgTotal = bookingEvals.reduce((sum, ev) => sum + Object.values(ev.grades).reduce((a,c)=>a+c,0), 0) / bookingEvals.length;
+      teamScores[key].total += bookingAvgTotal;
+      teamScores[key].counts += 1;
+      
+      fields.forEach(f => {
+        if (!teamScores[key].fields[f.id]) teamScores[key].fields[f.id] = 0;
+        const fieldAvg = bookingEvals.reduce((sum, ev) => sum + (ev.grades[f.id] || 0), 0) / bookingEvals.length;
+        teamScores[key].fields[f.id] += fieldAvg;
+      });
+    });
+    
+    const sortedTeams = Object.values(teamScores).sort((a, b) => b.total - a.total);
+    
+    sortedTeams.forEach((team, idx) => {
+      const rowData: Record<string, string | number> = {
+        rank: idx + 1,
+        churchName: team.churchName,
+        teamName: team.teamName,
+        counts: team.counts,
+        total: parseFloat(team.total.toFixed(1))
+      };
+      
+      fields.forEach(f => {
+        rowData[`avg_${f.id}`] = parseFloat((team.fields[f.id] || 0).toFixed(1));
+      });
+      
+      leaderboardSheet.addRow(rowData);
+    });
+    
+    leaderboardSheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        const rank = rowNumber - 1;
+        let bgColor = 'FFFFFFFF'; // default white
+        let fontColor = 'FF1E293B'; // default slate-800
+        let isBold = false;
+        
+        // Highlight top 3
+        if (rank === 1) {
+          bgColor = 'FFFFD700'; // Gold
+          fontColor = 'FF713F12'; // Yellow-900
+          isBold = true;
+          row.height = 25;
+        } else if (rank === 2) {
+          bgColor = 'FFE2E8F0'; // Silver (Slate-200)
+          fontColor = 'FF334155'; // Slate-700
+          isBold = true;
+          row.height = 22;
+        } else if (rank === 3) {
+          bgColor = 'FFD4A373'; // Bronze
+          fontColor = 'FF78350F'; // Amber-900
+          isBold = true;
+          row.height = 22;
+        } else if (rank % 2 === 0) {
+          bgColor = 'FFF8FAFC'; // Alternate row color
+        }
+        
+        row.eachCell((cell) => {
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+          cell.font = { name: 'Segoe UI', size: isBold ? 11 : 10, bold: isBold, color: { argb: fontColor } };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          };
         });
       }
     });

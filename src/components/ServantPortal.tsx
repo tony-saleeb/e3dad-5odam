@@ -275,6 +275,21 @@ export default function ServantPortal() {
                 const servantEval = getServantEvaluation(booking.id);
                 const hasEvaluated = !!servantEval;
 
+                // 24-hour grace period for editing evaluations
+                let canEdit = true;
+                if (hasEvaluated) {
+                  const bookingEndDateTimeStr = `${booking.date}T${booking.endTime}:00`;
+                  const bookingEndDate = new Date(bookingEndDateTimeStr);
+                  if (!isNaN(bookingEndDate.getTime())) {
+                    const gracePeriodEnd = new Date(bookingEndDate.getTime() + 24 * 60 * 60 * 1000);
+                    if (new Date() > gracePeriodEnd) {
+                      canEdit = false;
+                    }
+                  } else {
+                    canEdit = false; // Disable if time string is unparseable
+                  }
+                }
+
                 // Calculate current grade sum
                 const currentScore = hasEvaluated
                   ? Object.values(servantEval.grades).reduce((a, b) => a + b, 0)
@@ -369,14 +384,16 @@ export default function ServantPortal() {
 
                       <button
                         onClick={() => handleOpenGrading(booking)}
-                        disabled={hasEvaluated}
+                        disabled={hasEvaluated && !canEdit}
                         className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                          hasEvaluated
+                          hasEvaluated && !canEdit
                             ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.2)] cursor-pointer'
+                            : hasEvaluated && canEdit
+                              ? 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 hover:border-amber-300 shadow-xs cursor-pointer'
+                              : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.2)] cursor-pointer'
                         }`}
                       >
-                        {hasEvaluated ? 'تم التقييم ✓' : 'تقييم الفريق'}
+                        {hasEvaluated && !canEdit ? 'مغلق (انتهى وقت التعديل)' : hasEvaluated && canEdit ? 'تعديل التقييم' : 'تقييم الفريق'}
                       </button>
                     </div>
                   </div>

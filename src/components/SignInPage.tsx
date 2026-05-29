@@ -2,10 +2,47 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
+import { db } from '@/lib/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { churches } from '@/data/initialData';
 
 export default function SignInPage() {
-  const { signInWithGoogle, loading, authError } = useAuth();
-  const [, setIsHovered] = useState(false);
+  const { signInWithGoogle, loading, authError, lastFailedEmail } = useAuth();
+
+  // Access request modal state
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [reqName, setReqName] = useState('');
+  const [reqChurch, setReqChurch] = useState(churches[0]);
+  const [reqTeam, setReqTeam] = useState('');
+  const [reqSubmitting, setReqSubmitting] = useState(false);
+  const [reqSuccess, setReqSuccess] = useState(false);
+  const [reqError, setReqError] = useState('');
+
+  const handleSubmitRequest = async () => {
+    setReqError('');
+    if (!reqName.trim()) { setReqError('الاسم الكامل مطلوب'); return; }
+    if (!reqTeam.trim()) { setReqError('اسم الفريق مطلوب'); return; }
+    if (!lastFailedEmail) { setReqError('لم يتم التعرف على البريد الإلكتروني. يرجى تسجيل الدخول أولاً.'); return; }
+
+    setReqSubmitting(true);
+    try {
+      const email = lastFailedEmail.toLowerCase();
+      await setDoc(doc(db, 'access_requests', email), {
+        email,
+        name: reqName.trim(),
+        churchName: reqChurch,
+        teamName: reqTeam.trim(),
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      });
+      setReqSuccess(true);
+    } catch (err) {
+      console.error('Error submitting access request:', err);
+      setReqError('حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setReqSubmitting(false);
+    }
+  };
 
   return (
     <>
@@ -201,32 +238,6 @@ export default function SignInPage() {
           height: 75%;
           object-fit: contain;
           border-radius: 50%;
-        }
-
-        .left-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-
-          padding: 6px 16px;
-          border-radius: 100px;
-
-          font-size: 12px;
-          font-weight: 700;
-
-          background: rgba(16,185,129,0.08);
-          border: 1px solid rgba(16,185,129,0.2);
-          color: #6ee7b7;
-
-          margin-bottom: 24px;
-        }
-
-        .left-badge-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #10b981;
-          box-shadow: 0 0 6px #10b981;
         }
 
         .left-title {
@@ -576,6 +587,219 @@ export default function SignInPage() {
           font-size: 11px;
           color: #94a3b8;
         }
+
+        /* ═════════ ACCESS REQUEST MODAL ═════════ */
+        .request-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 100;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          animation: fadeSlideUp 0.3s ease both;
+        }
+
+        .request-backdrop {
+          position: absolute;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.6);
+          backdrop-filter: blur(12px);
+        }
+
+        .request-card {
+          position: relative;
+          width: 100%;
+          max-width: 420px;
+          background: white;
+          border-radius: 24px;
+          padding: 32px 28px 28px;
+          box-shadow: 0 25px 80px rgba(0,0,0,0.2);
+          z-index: 1;
+        }
+
+        .request-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(90deg, #f59e0b, #f97316, #ef4444);
+          border-radius: 24px 24px 0 0;
+        }
+
+        .request-title {
+          font-size: 18px;
+          font-weight: 900;
+          color: #0f172a;
+          text-align: center;
+          margin-bottom: 4px;
+        }
+
+        .request-subtitle {
+          font-size: 12px;
+          color: #64748b;
+          text-align: center;
+          margin-bottom: 20px;
+        }
+
+        .request-field {
+          margin-bottom: 14px;
+        }
+
+        .request-label {
+          display: block;
+          font-size: 12px;
+          font-weight: 700;
+          color: #475569;
+          margin-bottom: 6px;
+        }
+
+        .request-input,
+        .request-select {
+          width: 100%;
+          padding: 12px 16px;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 14px;
+          font-family: 'Cairo', sans-serif;
+          font-size: 14px;
+          font-weight: 600;
+          color: #0f172a;
+          background: #f8fafc;
+          transition: all 0.2s ease;
+          outline: none;
+        }
+
+        .request-input:focus,
+        .request-select:focus {
+          border-color: #059669;
+          box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+          background: white;
+        }
+
+        .request-input[readonly] {
+          background: #f1f5f9;
+          color: #94a3b8;
+          cursor: not-allowed;
+        }
+
+        .request-submit {
+          width: 100%;
+          padding: 14px;
+          border: none;
+          border-radius: 14px;
+          background: #0f172a;
+          color: white;
+          font-family: 'Cairo', sans-serif;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          margin-top: 6px;
+        }
+
+        .request-submit:hover:not(:disabled) {
+          background: #065f46;
+          transform: translateY(-1px);
+          box-shadow: 0 8px 24px rgba(6, 95, 70, 0.3);
+        }
+
+        .request-submit:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .request-cancel {
+          width: 100%;
+          padding: 12px;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 14px;
+          background: transparent;
+          color: #64748b;
+          font-family: 'Cairo', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+          margin-top: 8px;
+        }
+
+        .request-cancel:hover {
+          background: #f1f5f9;
+          border-color: #cbd5e1;
+        }
+
+        .request-error {
+          padding: 10px 14px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 10px;
+          color: #dc2626;
+          font-size: 12px;
+          font-weight: 600;
+          margin-bottom: 12px;
+          text-align: center;
+        }
+
+        /* SUCCESS STATE */
+        .request-success {
+          text-align: center;
+          padding: 20px 0;
+        }
+
+        .success-checkmark {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 16px;
+          animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        @keyframes scaleIn {
+          from { transform: scale(0); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+
+        .success-title {
+          font-size: 17px;
+          font-weight: 900;
+          color: #065f46;
+          margin-bottom: 6px;
+        }
+
+        .success-desc {
+          font-size: 12px;
+          color: #64748b;
+          line-height: 1.7;
+        }
+
+        /* JOIN REQUEST TRIGGER BUTTON */
+        .request-trigger {
+          width: 100%;
+          padding: 14px;
+          margin-top: 12px;
+          border: 2px dashed #f59e0b;
+          border-radius: 14px;
+          background: #fffbeb;
+          color: #92400e;
+          font-family: 'Cairo', sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .request-trigger:hover {
+          background: #fef3c7;
+          border-color: #d97706;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+        }
       `}</style>
 
       <div className="signin-root">
@@ -667,8 +891,6 @@ export default function SignInPage() {
               <button
                 onClick={signInWithGoogle}
                 disabled={loading}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
                 className="google-btn"
               >
                 {loading ? (
@@ -730,6 +952,16 @@ export default function SignInPage() {
                   {authError}
                 </div>
               )}
+
+              {/* Access Request Trigger — only shown when auth fails with unauthorized email */}
+              {authError && lastFailedEmail && (
+                <button
+                  className="request-trigger"
+                  onClick={() => { setShowRequestModal(true); setReqSuccess(false); setReqError(''); }}
+                >
+                  📝 تقديم طلب انضمام كقائد فريق
+                </button>
+              )}
             </div>
 
             <p className="right-footer">
@@ -738,6 +970,100 @@ export default function SignInPage() {
           </div>
         </div>
       </div>
+
+      {/* ═══════ ACCESS REQUEST MODAL ═══════ */}
+      {showRequestModal && (
+        <div className="request-overlay" dir="rtl">
+          <div className="request-backdrop" onClick={() => !reqSubmitting && setShowRequestModal(false)} />
+          <div className="request-card">
+            {reqSuccess ? (
+              <div className="request-success">
+                <div className="success-checkmark">
+                  <svg width="32" height="32" fill="none" stroke="#059669" strokeWidth="3" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div className="success-title">تم إرسال طلبك بنجاح! ✓</div>
+                <div className="success-desc">
+                  سيقوم المسؤول بمراجعة طلبك والموافقة عليه.
+                  <br />
+                  ستتمكن من تسجيل الدخول بمجرد قبول الطلب.
+                </div>
+                <button
+                  className="request-cancel"
+                  style={{ marginTop: 20 }}
+                  onClick={() => setShowRequestModal(false)}
+                >
+                  إغلاق
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="request-title">طلب انضمام كقائد فريق</div>
+                <div className="request-subtitle">أدخل بياناتك وسيتم إرسال الطلب للمسؤول للموافقة</div>
+
+                {reqError && <div className="request-error">{reqError}</div>}
+
+                <div className="request-field">
+                  <label className="request-label">البريد الإلكتروني</label>
+                  <input className="request-input" type="email" value={lastFailedEmail || ''} readOnly />
+                </div>
+
+                <div className="request-field">
+                  <label className="request-label">الاسم الكامل *</label>
+                  <input
+                    className="request-input"
+                    type="text"
+                    placeholder="أدخل اسمك الكامل"
+                    value={reqName}
+                    onChange={(e) => setReqName(e.target.value)}
+                  />
+                </div>
+
+                <div className="request-field">
+                  <label className="request-label">الكنيسة *</label>
+                  <select
+                    className="request-select"
+                    value={reqChurch}
+                    onChange={(e) => setReqChurch(e.target.value)}
+                  >
+                    {churches.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="request-field">
+                  <label className="request-label">اسم الفريق *</label>
+                  <input
+                    className="request-input"
+                    type="text"
+                    placeholder="أدخل اسم فريقك"
+                    value={reqTeam}
+                    onChange={(e) => setReqTeam(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  className="request-submit"
+                  disabled={reqSubmitting}
+                  onClick={handleSubmitRequest}
+                >
+                  {reqSubmitting ? 'جاري الإرسال...' : 'إرسال طلب الانضمام'}
+                </button>
+
+                <button
+                  className="request-cancel"
+                  onClick={() => setShowRequestModal(false)}
+                  disabled={reqSubmitting}
+                >
+                  إلغاء
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

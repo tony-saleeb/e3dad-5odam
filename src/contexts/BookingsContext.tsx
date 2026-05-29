@@ -13,8 +13,9 @@ import {
   serverTimestamp,
   DocumentData,
   runTransaction,
+  getDoc,
 } from 'firebase/firestore';
-import { Booking, BookingStatus, TeamMember } from '@/types';
+import { Booking, BookingStatus } from '@/types';
 import { useGlobalSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -23,12 +24,10 @@ interface BookingsContextType {
   allBookingsIncludingCancelled: Booking[];
   loading: boolean;
   error: string | null;
-  syncQueueSize: number;
   addBooking: (bookingData: Omit<Booking, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   updateBookingStatus: (id: string, status: BookingStatus, rejectionReason?: string) => Promise<void>;
   deleteBooking: (id: string) => Promise<void>;
   restoreBooking: (id: string) => Promise<void>;
-  syncAllBookingsToSheets: () => Promise<void>;
   refreshBookings: () => Promise<void>;
 }
 
@@ -69,139 +68,11 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [allBookingsIncludingCancelled, setAllBookingsIncludingCancelled] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [syncQueueSize, setSyncQueueSize] = useState(0);
   const { settings } = useGlobalSettings();
   const { user } = useAuth();
   const { startMonth, endMonth } = settings.bookingRange;
 
-  // Standardized webhook sync utility with offline resilience, retries, and local storage buffering
-  const flushSyncQueue = useCallback(async () => {
-    const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
-    if (!webhookUrl || !webhookUrl.startsWith('http') || !navigator.onLine) return;
 
-    let queue: { id: string; payload: Record<string, unknown>; attempts: number }[] = [];
-    try {
-      const stored = localStorage.getItem('bookings_sync_queue');
-      if (stored) {
-        queue = JSON.parse(stored);
-        setSyncQueueSize(queue.length);
-      } else {
-        setSyncQueueSize(0);
-      }
-    } catch (e) {
-      console.error('[BookingsContext] Failed to parse sync queue:', e);
-    }
-
-    if (queue.length === 0) return;
-
-    const remainingQueue: typeof queue = [];
-
-    for (const item of queue) {
-      try {
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(item.payload),
-        });
-
-        if (!response.ok && response.status >= 500) {
-          throw new Error(`Server returned temporary error: ${response.status}`);
-        }
-      } catch (err) {
-        console.warn(`[BookingsContext] Failed sync attempt ${item.attempts + 1} for item ${item.id}:`, err);
-        if (item.attempts < 3) {
-          remainingQueue.push({
-            ...item,
-            attempts: item.attempts + 1,
-          });
-        } else {
-          console.error(`[BookingsContext] Permanent sync failure for item ${item.id} after 3 attempts.`);
-        }
-        continue;
-      }
-    }
-
-    try {
-      localStorage.setItem('bookings_sync_queue', JSON.stringify(remainingQueue));
-      setSyncQueueSize(remainingQueue.length);
-    } catch (e) {
-      console.error('[BookingsContext] Failed to save remaining sync queue:', e);
-    }
-  }, []);
-
-  const triggerSyncWebhook = useCallback((payload: Record<string, unknown>) => {
-    const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
-    if (!webhookUrl || !webhookUrl.startsWith('http')) return;
-
-    const syncItem = {
-      id: `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      payload,
-      attempts: 0,
-    };
-
-    if (!navigator.onLine) {
-      let queue: typeof syncItem[] = [];
-      try {
-        const stored = localStorage.getItem('bookings_sync_queue');
-        if (stored) queue = JSON.parse(stored);
-      } catch (e) {
-        console.error(e);
-      }
-      queue.push(syncItem);
-      localStorage.setItem('bookings_sync_queue', JSON.stringify(queue));
-      setSyncQueueSize(queue.length);
-      return;
-    }
-
-    fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).then(async (response) => {
-      if (!response.ok && response.status >= 500) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-    }).catch((err) => {
-      console.warn('[BookingsContext] Primary sync request failed, queuing locally:', err);
-      let queue: typeof syncItem[] = [];
-      try {
-        const stored = localStorage.getItem('bookings_sync_queue');
-        if (stored) queue = JSON.parse(stored);
-      } catch (e) {
-        console.error(e);
-      }
-      queue.push(syncItem);
-      localStorage.setItem('bookings_sync_queue', JSON.stringify(queue));
-      setSyncQueueSize(queue.length);
-    });
-  }, []);
-
-  // Flush sync queue on mount or when coming back online
-  useEffect(() => {
-    let active = true;
-    Promise.resolve().then(() => {
-      if (active) {
-        try {
-          const stored = localStorage.getItem('bookings_sync_queue');
-          if (stored) {
-            const queue = JSON.parse(stored);
-            setSyncQueueSize(queue.length);
-          }
-        } catch {}
-        flushSyncQueue();
-      }
-    });
-
-    const handleOnline = () => {
-      if (active) flushSyncQueue();
-    };
-
-    window.addEventListener('online', handleOnline);
-    return () => {
-      active = false;
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [flushSyncQueue]);
 
   // Real-time listener — Firestore onSnapshot replaces polling + Supabase channels
   useEffect(() => {
@@ -284,52 +155,40 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
         transaction.set(ref, docData);
       });
-
-      // Sync to Google Sheets
-      triggerSyncWebhook({
-        action: 'ADD',
-        ...docData,
-        createdAt: new Date().toISOString(), // Webhook friendly string timestamp
-        members: Array.isArray(bookingData.teamMembers)
-          ? bookingData.teamMembers.map((m: TeamMember) => `${m.name} (${m.id})`).join(', ')
-          : '',
-      });
     } catch (err) {
       console.error('[BookingsContext] Error adding booking:', err);
       throw err;
     }
-  }, [triggerSyncWebhook]);
+  }, []);
 
   const updateBookingStatus = useCallback(
     async (id: string, status: BookingStatus, rejectionReason?: string) => {
       try {
-        const target = allBookingsIncludingCancelled.find((b) => b.id === id) || bookings.find((b) => b.id === id);
         const ref = doc(db, 'bookings', id);
+        
+        // Fetch booking to get user email
+        const snap = await getDoc(ref);
+        let userEmail = '';
+        let projectName = '';
+        if (snap.exists()) {
+          userEmail = snap.data().requesterEmail;
+          projectName = snap.data().title;
+        }
+
         await updateDoc(ref, { status, rejectionReason: rejectionReason || null });
 
-        // Sync to Google Sheets
-        if (target) {
-          triggerSyncWebhook({
-            action: 'UPDATE',
-            ...target,
-            status,
-            rejectionReason,
-          });
-        }
+        // Notifications disabled
       } catch (err) {
         console.error('[BookingsContext] Error updating status:', err);
         throw err;
       }
     },
-    [bookings, allBookingsIncludingCancelled, triggerSyncWebhook]
+    []
   );
 
   const deleteBooking = useCallback(
     async (id: string) => {
       try {
-        const target = allBookingsIncludingCancelled.find((b) => b.id === id) || bookings.find((b) => b.id === id);
-        if (!target) throw new Error('لم يتم العثور على الحجز المحدد.');
-
         const ref = doc(db, 'bookings', id);
         // Soft delete booking in Firestore
         await updateDoc(ref, {
@@ -337,29 +196,17 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           cancelledAt: new Date().toISOString(),
           cancelledBy: user?.email || 'unknown',
         });
-
-        // Sync to Google Sheets
-        triggerSyncWebhook({
-          action: 'DELETE',
-          churchName: target.churchName,
-          date: target.date,
-          startTime: target.startTime,
-          requesterName: target.requesterName,
-        });
       } catch (err) {
-         console.error('[BookingsContext] Error deleting booking:', err);
+        console.error('[BookingsContext] Error deleting booking:', err);
         throw err;
       }
     },
-    [bookings, allBookingsIncludingCancelled, triggerSyncWebhook, user]
+    [user]
   );
 
   const restoreBooking = useCallback(
     async (id: string) => {
       try {
-        const target = allBookingsIncludingCancelled.find((b) => b.id === id);
-        if (!target) throw new Error('لم يتم العثور على الحجز المحدد.');
-
         const ref = doc(db, 'bookings', id);
 
         await runTransaction(db, async (transaction) => {
@@ -373,69 +220,14 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             cancelledBy: null,
           });
         });
-
-        // Sync to Google Sheets
-        triggerSyncWebhook({
-          action: 'ADD',
-          title: target.title || '',
-          requesterName: target.requesterName || '',
-          requesterEmail: (target.requesterEmail || '').toLowerCase(),
-          serviceId: target.serviceId || 'church-adaptation',
-          roomId: target.roomId || 'church-adaptation',
-          date: target.date || '',
-          startTime: target.startTime || '',
-          endTime: target.endTime || '',
-          churchName: target.churchName || '',
-          teamName: target.teamName || '',
-          ageGroup: target.ageGroup || '',
-          status: 'approved',
-          createdAt: new Date().toISOString(),
-          members: Array.isArray(target.teamMembers)
-            ? target.teamMembers.map((m: TeamMember) => `${m.name} (${m.id})`).join(', ')
-            : '',
-        });
       } catch (err) {
         console.error('[BookingsContext] Error restoring booking:', err);
         throw err;
       }
     },
-    [allBookingsIncludingCancelled, triggerSyncWebhook]
+    []
   );
 
-  const syncAllBookingsToSheets = useCallback(async () => {
-    const webhookUrl = process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK;
-    if (!webhookUrl || !webhookUrl.startsWith('http')) {
-      throw new Error('لم يتم تكوين عنوان Google Sheets Webhook الخاص بالمزامنة.');
-    }
-
-    const activeBookings = bookings.filter((b) => b.status !== 'cancelled');
-    const payload = {
-      action: 'SYNC_ALL',
-      bookings: activeBookings.map((b) => ({
-        ...b,
-        members: Array.isArray(b.teamMembers)
-          ? b.teamMembers.map((m) => `${m.name} (${m.id})`).join(', ')
-          : '',
-      })),
-    };
-
-    try {
-      const res = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        throw new Error(`فشلت مزامنة الويب هوك: code ${res.status}`);
-      }
-    } catch (err) {
-      if (err instanceof Error && (err.message.includes('fetch') || err.message === 'Failed to fetch')) {
-        throw new Error('عذراً، فشل الاتصال بخادم المزامنة. يرجى التحقق من اتصالك بالإنترنت أو التأكد من إعدادات الويب هوك.');
-      }
-      throw err;
-    }
-  }, [bookings]);
 
   const value = useMemo(
     () => ({
@@ -443,12 +235,10 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       allBookingsIncludingCancelled,
       loading,
       error,
-      syncQueueSize,
       addBooking,
       updateBookingStatus,
       deleteBooking,
       restoreBooking,
-      syncAllBookingsToSheets,
       refreshBookings: fetchBookings,
     }),
     [
@@ -456,12 +246,10 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       allBookingsIncludingCancelled,
       loading,
       error,
-      syncQueueSize,
       addBooking,
       updateBookingStatus,
       deleteBooking,
       restoreBooking,
-      syncAllBookingsToSheets,
       fetchBookings,
     ]
   );
