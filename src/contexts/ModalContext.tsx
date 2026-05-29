@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, createContext, useContext, ReactNode } from 'react';
+import { useState, createContext, useContext, ReactNode, useEffect } from 'react';
 
 interface ModalState {
   isOpen: boolean;
@@ -80,6 +80,35 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     closeModal();
   };
 
+  return (
+    <ModalContext.Provider value={{ showAlert, showConfirm, closeModal }}>
+      {children}
+      <GlobalModal modal={modal} closeModal={closeModal} handleConfirm={handleConfirm} />
+    </ModalContext.Provider>
+  );
+}
+
+interface GlobalModalProps {
+  modal: ModalState;
+  closeModal: () => void;
+  handleConfirm: () => void;
+}
+
+function GlobalModal({ modal, closeModal, handleConfirm }: GlobalModalProps) {
+  // Escape key listener for accessibility
+  useEffect(() => {
+    if (!modal.isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modal.isOpen, closeModal]);
+
+  if (!modal.isOpen) return null;
+
   const getVariantStyles = () => {
     switch (modal.variant) {
       case 'danger':
@@ -121,59 +150,52 @@ export function ModalProvider({ children }: { children: ReactNode }) {
   const styles = getVariantStyles();
 
   return (
-    <ModalContext.Provider value={{ showAlert, showConfirm, closeModal }}>
-      {children}
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4" dir="rtl">
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        onClick={closeModal}
+      />
 
-      {/* Modal */}
-      {modal.isOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4" dir="rtl">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
-            onClick={closeModal}
-          />
-
-          <div className="relative w-full max-w-md animate-slide-up">
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-              {/* Header */}
-              <div className="p-6 text-center">
-                <div className={`w-14 h-14 rounded-full ${styles.iconBg} ${styles.iconColor} flex items-center justify-center mx-auto mb-4`}>
-                  {styles.icon}
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">{modal.title}</h3>
-                <p className="text-gray-500 text-sm whitespace-pre-line">{modal.message}</p>
-              </div>
-
-              {/* Actions */}
-              <div className="px-6 pb-6 flex gap-3">
-                {modal.type === 'confirm' ? (
-                  <>
-                    <button
-                      onClick={closeModal}
-                      className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-all"
-                    >
-                      {modal.cancelText}
-                    </button>
-                    <button
-                      onClick={handleConfirm}
-                      className={`flex-1 py-3 rounded-xl ${styles.buttonBg} text-white font-semibold transition-all`}
-                    >
-                      {modal.confirmText}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={closeModal}
-                    className={`flex-1 py-3 rounded-xl ${styles.buttonBg} text-white font-semibold transition-all`}
-                  >
-                    حسناً
-                  </button>
-                )}
-              </div>
+      <div className="relative w-full max-w-md animate-slide-up">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          {/* Header */}
+          <div className="p-6 text-center">
+            <div className={`w-14 h-14 rounded-full ${styles.iconBg} ${styles.iconColor} flex items-center justify-center mx-auto mb-4`}>
+              {styles.icon}
             </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">{modal.title}</h3>
+            <p className="text-gray-500 text-sm whitespace-pre-line">{modal.message}</p>
+          </div>
+
+          {/* Actions */}
+          <div className="px-6 pb-6 flex gap-3">
+            {modal.type === 'confirm' ? (
+              <>
+                <button
+                  onClick={closeModal}
+                  className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-all"
+                >
+                  {modal.cancelText}
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className={`flex-1 py-3 rounded-xl ${styles.buttonBg} text-white font-semibold transition-all`}
+                >
+                  {modal.confirmText}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={closeModal}
+                className={`flex-1 py-3 rounded-xl ${styles.buttonBg} text-white font-semibold transition-all`}
+              >
+                حسناً
+              </button>
+            )}
           </div>
         </div>
-      )}
-    </ModalContext.Provider>
+      </div>
+    </div>
   );
 }
 

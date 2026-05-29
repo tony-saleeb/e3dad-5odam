@@ -31,14 +31,21 @@ export default function SetupTeamPage() {
   // Pre-fill form if team details already exist (edit mode)
   useEffect(() => {
     if (user?.teamDetails) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormData({
-        churchName: user.teamDetails.churchName || '',
-        title: user.teamDetails.title || '',
-        teamName: user.teamDetails.teamName || '',
-        ageGroup: user.teamDetails.ageGroup || '',
-        teamMembers: user.teamDetails.teamMembers || [],
+      let active = true;
+      Promise.resolve().then(() => {
+        if (active && user?.teamDetails) {
+          setFormData({
+            churchName: user.teamDetails.churchName || '',
+            title: user.teamDetails.title || '',
+            teamName: user.teamDetails.teamName || '',
+            ageGroup: user.teamDetails.ageGroup || '',
+            teamMembers: user.teamDetails.teamMembers || [],
+          });
+        }
       });
+      return () => {
+        active = false;
+      };
     }
   }, [user]);
 

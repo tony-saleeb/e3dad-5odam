@@ -1,6 +1,6 @@
 // TypeScript interfaces for Church Facility Scheduler
 
-export type BookingStatus = 'pending' | 'approved' | 'rejected';
+export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
 // User roles: admin (مسؤول), servant (أمين الخدمة), user (مستخدم)
 export type UserRole = 'admin' | 'servant' | 'user';
@@ -101,12 +101,12 @@ export interface Booking {
   rejectionReason?: string;
   notes?: string;
   createdAt: string;
-  // CHURCH ADAPTATION: New fields for church booking
   churchName?: string;
   teamName?: string;
   ageGroup?: string;
-  teammates?: string[]; // Legacy: Array of teammate names
   teamMembers?: TeamMember[]; // New: Array of {name, id} objects
+  cancelledAt?: string;
+  cancelledBy?: string;
 }
 
 export interface DayBookings {

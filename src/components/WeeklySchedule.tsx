@@ -35,7 +35,7 @@ export default function WeeklySchedule() {
 
   const year = currentMonth.getFullYear();
   const startDate = useMemo(() => new Date(year, startMonth, 1), [year, startMonth]);
-  const endDate = useMemo(() => new Date(year, endMonth, 30), [year, endMonth]);
+  const endDate = useMemo(() => new Date(year, endMonth + 1, 0), [year, endMonth]);
 
   const isDayInBounds = useCallback((day: Date) => {
     const dayStart = startOfDay(day);
@@ -49,16 +49,22 @@ export default function WeeklySchedule() {
   const [mobileSelectedDayIndex, setMobileSelectedDayIndex] = useState(0);
 
   useEffect(() => {
+    let active = true;
     const dayIndex = currentMonth.getDay();
-    if (isDayInBounds(weekDays[dayIndex])) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMobileSelectedDayIndex(dayIndex);
-    } else {
-      const firstValidIdx = weekDays.findIndex(day => isDayInBounds(day));
-      if (firstValidIdx !== -1) {
-        setMobileSelectedDayIndex(firstValidIdx);
+    Promise.resolve().then(() => {
+      if (!active) return;
+      if (isDayInBounds(weekDays[dayIndex])) {
+        setMobileSelectedDayIndex(dayIndex);
+      } else {
+        const firstValidIdx = weekDays.findIndex(day => isDayInBounds(day));
+        if (firstValidIdx !== -1) {
+          setMobileSelectedDayIndex(firstValidIdx);
+        }
       }
-    }
+    });
+    return () => {
+      active = false;
+    };
   }, [currentMonth, weekDays, isDayInBounds]);
 
   const getBookingsForDay = (date: Date) => {
@@ -148,12 +154,12 @@ export default function WeeklySchedule() {
     const last = visibleDays[visibleDays.length - 1];
     
     if (first.getFullYear() !== last.getFullYear()) {
-      return `${format(first, "d MMM yyyy")} - ${format(last, "d MMM yyyy")}`;
+      return `${format(first, "d MMM yyyy", { locale: ar })} - ${format(last, "d MMM yyyy", { locale: ar })}`;
     }
     if (first.getMonth() !== last.getMonth()) {
-      return `${format(first, "d MMM")} - ${format(last, "d MMM yyyy")}`;
+      return `${format(first, "d MMM", { locale: ar })} - ${format(last, "d MMM yyyy", { locale: ar })}`;
     }
-    return `${format(first, "d")} - ${format(last, "d MMM yyyy")}`;
+    return `${format(first, "d", { locale: ar })} - ${format(last, "d MMM yyyy", { locale: ar })}`;
   }, [visibleDays]);
 
   if (loading) {
@@ -188,6 +194,7 @@ export default function WeeklySchedule() {
               <button 
                 onClick={goToNextWeek} 
                 disabled={!canGoNextWeek}
+                aria-label="الأسبوع التالي"
                 className={`p-1.5 rounded-lg transition-all ${
                   !canGoNextWeek ? "opacity-20 cursor-not-allowed text-gray-300" : "hover:bg-gray-100 active:bg-gray-200 text-gray-500"
                 }`}
@@ -198,6 +205,7 @@ export default function WeeklySchedule() {
               <button 
                 onClick={goToPrevWeek} 
                 disabled={!canGoPrevWeek}
+                aria-label="الأسبوع السابق"
                 className={`p-1.5 rounded-lg transition-all ${
                   !canGoPrevWeek ? "opacity-20 cursor-not-allowed text-gray-300" : "hover:bg-gray-100 active:bg-gray-200 text-gray-500"
                 }`}
@@ -310,6 +318,7 @@ export default function WeeklySchedule() {
               <button 
                 onClick={goToNextWeek} 
                 disabled={!canGoNextWeek}
+                aria-label="الأسبوع التالي"
                 className={`p-2 rounded-xl bg-white shadow-sm border border-slate-100 text-slate-500 transition-all ${
                   !canGoNextWeek ? "opacity-30 cursor-not-allowed text-gray-300" : "hover:text-slate-700 hover:shadow"
                 }`}
@@ -319,6 +328,7 @@ export default function WeeklySchedule() {
               <button 
                 onClick={goToPrevWeek} 
                 disabled={!canGoPrevWeek}
+                aria-label="الأسبوع السابق"
                 className={`p-2 rounded-xl bg-white shadow-sm border border-slate-100 text-slate-500 transition-all ${
                   !canGoPrevWeek ? "opacity-30 cursor-not-allowed text-gray-300" : "hover:text-slate-700 hover:shadow"
                 }`}

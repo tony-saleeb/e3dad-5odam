@@ -2,33 +2,41 @@
   "version": "0.2",
   "language": "en,ar",
   "words": [
-    "firestore",
-    "lineicons",
-    "rgba",
-    "tailwindcss",
-    "postcss",
-    "unsub",
-    "glassmorphism",
-    "FDFF",
-    "FEFF",
-    "FB50",
-    "FE70",
-    "exceljs",
-    "evals",
     "argb",
-    "segoe",
-    "openxmlformats",
-    "officedocument",
-    "spreadsheetml",
     "creativ",
-    "naskh"
+    "evals",
+    "exceljs",
+    "FB50",
+    "FDFF",
+    "FE70",
+    "FEFF",
+    "firestore",
+    "glassmorphism",
+    "lineicons",
+    "naskh",
+    "officedocument",
+    "openxmlformats",
+    "postcss",
+    "rgba",
+    "segoe",
+    "spreadsheetml",
+    "Supabase",
+    "tailwindcss",
+    "unsub"
   ],
-  "enableFiletypes": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
+  "enableFiletypes": [
+    "typescript",
+    "typescriptreact",
+    "javascript",
+    "javascriptreact"
+  ],
   "patterns": [
     {
       "name": "Arabic",
       "pattern": "/[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]+/g"
     }
   ],
-  "ignoreRegExpList": ["Arabic"]
+  "ignoreRegExpList": [
+    "Arabic"
+  ]
 }

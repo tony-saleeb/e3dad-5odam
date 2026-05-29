@@ -10,6 +10,24 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from './Toast';
 import { TeamMember } from '@/types';
+import BookingReviewCard from './BookingReviewCard';
+
+interface AllowedUser {
+  email: string;
+  name: string;
+  role: 'user' | 'admin';
+  teamDetails?: {
+    churchName: string;
+    teamName: string;
+    title: string;
+    ageGroup: string;
+    teamMembers: TeamMember[];
+  };
+}
+
+// Persistent caching layer to minimize Firestore read operations and reduce billing costs
+let cachedAllowedUsers: AllowedUser[] | null = null;
+let cacheExpirationTime = 0;
 
 export default function BookingModal() {
   const { isAdmin, user } = useAuth();
@@ -43,18 +61,6 @@ export default function BookingModal() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Admin-only auto-fill states
-  interface AllowedUser {
-    email: string;
-    name: string;
-    role: 'user' | 'admin';
-    teamDetails?: {
-      churchName: string;
-      teamName: string;
-      title: string;
-      ageGroup: string;
-      teamMembers: TeamMember[];
-    };
-  }
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AllowedUser | null>(null);
@@ -73,6 +79,13 @@ export default function BookingModal() {
   useEffect(() => {
     const fetchAllowedUsers = async () => {
       if (!isBookingModalOpen || !isAdmin) return;
+
+      const now = Date.now();
+      if (cachedAllowedUsers && now < cacheExpirationTime) {
+        setAllowedUsers(cachedAllowedUsers);
+        return;
+      }
+
       setLoadingUsers(true);
       try {
         const snap = await getDocs(collection(db, 'allowed_users'));
@@ -82,6 +95,11 @@ export default function BookingModal() {
         })) as AllowedUser[];
         // Filter users who have teamDetails
         const usersWithDetails = users.filter(u => u.teamDetails);
+
+        // Cache the result for 3 minutes
+        cachedAllowedUsers = usersWithDetails;
+        cacheExpirationTime = now + 3 * 60 * 1000;
+
         setAllowedUsers(usersWithDetails);
       } catch (err) {
         console.error('Error fetching allowed users in BookingModal:', err);
@@ -114,6 +132,18 @@ export default function BookingModal() {
       setIsUserDropdownOpen(false);
     }
   }, [isBookingModalOpen, selectedDate, selectedStartTime, selectedEndTime, user]);
+
+  // Escape key listener for accessibility
+  useEffect(() => {
+    if (!isBookingModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeBookingModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isBookingModalOpen, closeBookingModal]);
 
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {};
@@ -221,7 +251,6 @@ export default function BookingModal() {
         churchName: formData.churchName,
         teamName: formData.teamName,
         ageGroup: formData.ageGroup,
-        teammates: formData.teamMembers.map(m => m.name),
         teamMembers: formData.teamMembers,
       });
 
@@ -345,9 +374,9 @@ export default function BookingModal() {
                           u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
                           u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
                         )
-                        .map((u, idx) => (
+                        .map((u) => (
                           <div
-                            key={idx}
+                            key={u.email}
                             onClick={() => {
                               setSelectedUser(u);
                               if (u.teamDetails) {
@@ -485,83 +514,14 @@ export default function BookingModal() {
 
                   {/* Registered Details Card */}
                   {selectedUser.teamDetails && (
-                    <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-2xs">
-                      <h3 className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2 border-b border-slate-50 pb-2">
-                        <span className="w-2 h-5 rounded-full bg-slate-700 inline-block" />
-                        بيانات المشروع المسجلة للخادم
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                        {[
-                          { 
-                            label: 'الكنيسة', 
-                            value: selectedUser.teamDetails.churchName,
-                            icon: (
-                              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                              </svg>
-                            )
-                          },
-                          { 
-                            label: 'المشروع', 
-                            value: selectedUser.teamDetails.title,
-                            icon: (
-                              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 113.536 0V21h2v-2.243a5 5 0 013.536 0z" />
-                              </svg>
-                            )
-                          },
-                          { 
-                            label: 'الفريق', 
-                            value: selectedUser.teamDetails.teamName,
-                            icon: (
-                              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                              </svg>
-                            )
-                          },
-                          { 
-                            label: 'المرحلة العمرية', 
-                            value: selectedUser.teamDetails.ageGroup,
-                            icon: (
-                              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                              </svg>
-                            )
-                          },
-                        ].map(({ label, value, icon }) => (
-                          <div key={label} className="flex items-center gap-3 bg-white border border-slate-100 p-3 rounded-2xl shadow-2xs hover:border-slate-200 transition-all">
-                            <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-                              {icon}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wide leading-normal">{label}</span>
-                              <span className="text-slate-800 font-black text-xs sm:text-sm truncate block mt-0.5 pb-1 leading-normal">{value || '—'}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Team Members List */}
-                      <div className="mt-5 pt-4 border-t border-slate-100">
-                        <div className="flex items-center gap-1.5 mb-3">
-                          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                          <span className="text-xs font-black text-slate-700 tracking-wider">أعضاء الفريق ({selectedUser.teamDetails.teamMembers.length})</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2 max-h-30 overflow-y-auto pr-1">
-                          {selectedUser.teamDetails.teamMembers.map((m, i) => (
-                            <div key={i} className="bg-slate-50/70 border border-slate-100 text-slate-700 text-xs font-bold pl-3 pr-2 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 hover:bg-slate-50 hover:border-slate-200 transition-all duration-200 cursor-default">
-                              <span className="w-5 h-5 rounded-full bg-slate-700 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm">
-                                {i + 1}
-                              </span>
-                              <span>{m.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                    <BookingReviewCard
+                      churchName={selectedUser.teamDetails.churchName}
+                      title={selectedUser.teamDetails.title}
+                      teamName={selectedUser.teamDetails.teamName}
+                      ageGroup={selectedUser.teamDetails.ageGroup}
+                      teamMembers={selectedUser.teamDetails.teamMembers}
+                      titleText="بيانات المشروع المسجلة للخادم"
+                    />
                   )}
                 </div>
               )}
@@ -1011,85 +971,16 @@ export default function BookingModal() {
                 )}
 
                 {/* Premium Dashboard Summary Card */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-xs">
-                  <h3 className="text-sm font-black text-slate-700 mb-4 flex items-center gap-2 border-b border-slate-50 pb-2">
-                    <span className={`w-2 h-5 rounded-full ${churchColor.gradient || 'bg-teal-500'} inline-block`} />
-                    مراجعة بيانات الحجز
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                    {[
-                      { 
-                        label: 'الكنيسة', 
-                        value: formData.churchName,
-                        icon: (
-                          <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                          </svg>
-                        )
-                      },
-                      { 
-                        label: 'المشروع', 
-                        value: formData.title,
-                        icon: (
-                          <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 113.536 0V21h2v-2.243a5 5 0 013.536 0z" />
-                          </svg>
-                        )
-                      },
-                      { 
-                        label: 'الفريق', 
-                        value: formData.teamName,
-                        icon: (
-                          <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                        )
-                      },
-                      { 
-                        label: 'المرحلة العمرية', 
-                        value: formData.ageGroup,
-                        icon: (
-                          <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                          </svg>
-                        )
-                      },
-                    ].map(({ label, value, icon }) => (
-                      <div key={label} className="flex items-center gap-3 bg-white border border-slate-100 p-3 rounded-2xl shadow-2xs hover:border-slate-200 transition-all">
-                        <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-                          {icon}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wide leading-normal">{label}</span>
-                          <span className="text-slate-800 font-black text-xs sm:text-sm truncate block mt-0.5 pb-1 leading-normal">{value || '—'}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Team Members List inside Step 3 */}
-                  <div className="mt-5 pt-4 border-t border-slate-100">
-                    <div className="flex items-center gap-1.5 mb-3">
-                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                      <span className="text-xs font-black text-slate-700 tracking-wider">أعضاء الفريق ({formData.teamMembers.length})</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 max-h-30 overflow-y-auto pr-1">
-                      {formData.teamMembers.map((m, i) => (
-                        <div key={i} className="bg-slate-50/70 border border-slate-100 text-slate-700 text-xs font-bold pl-3 pr-2 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 hover:bg-slate-50 hover:border-slate-200 transition-all duration-200 cursor-default">
-                          <span className={`w-5 h-5 rounded-full ${
-                            churchColor.gradient || 'bg-linear-to-r from-emerald-500 to-teal-500'
-                          } text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm`}>
-                            {i + 1}
-                          </span>
-                          <span>{m.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <BookingReviewCard
+                  churchName={formData.churchName}
+                  title={formData.title}
+                  teamName={formData.teamName}
+                  ageGroup={formData.ageGroup}
+                  teamMembers={formData.teamMembers}
+                  titleText="مراجعة بيانات الحجز"
+                  accentGradient={churchColor.gradient || 'bg-linear-to-r from-emerald-500 to-teal-500'}
+                  accentBarColor={churchColor.gradient || 'bg-teal-500'}
+                />
               </div>
             )}
           </div>

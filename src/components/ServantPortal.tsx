@@ -68,18 +68,38 @@ export default function ServantPortal() {
   const [comments, setComments] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Initialize filter date to today's date or a sensible default
+  // Initialize filter date to today's date or clamp to booking range
   useEffect(() => {
     if (isServantPortalOpen) {
-      // Default to "2026-07-01" (allowed scheduling start date) or today's date if it fits
-      const today = new Date().toISOString().split('T')[0];
-      if (today.startsWith('2026-07') || today.startsWith('2026-08') || today.startsWith('2026-09')) {
-        setFilterDate(today);
+      const { startMonth, endMonth } = settings.bookingRange;
+      const year = new Date().getFullYear();
+      const rangeStart = new Date(year, startMonth, 1);
+      const rangeEnd = new Date(year, endMonth + 1, 0);
+      const today = new Date();
+      
+      if (today >= rangeStart && today <= rangeEnd) {
+        setFilterDate(today.toISOString().split('T')[0]);
       } else {
-        setFilterDate('2026-07-01');
+        setFilterDate(rangeStart.toISOString().split('T')[0]);
       }
     }
-  }, [isServantPortalOpen]);
+  }, [isServantPortalOpen, settings.bookingRange]);
+
+  // Escape key listener for accessibility
+  useEffect(() => {
+    if (!isServantPortalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isGradingOpen) {
+          setIsGradingOpen(false);
+        } else {
+          closeServantPortal();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isServantPortalOpen, isGradingOpen, closeServantPortal]);
 
   // Real-time listener for evaluations on the selected date
   useEffect(() => {

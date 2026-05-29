@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { AppSettings, EvaluationField } from '@/types';
@@ -44,7 +44,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
 
+  const loadedKeysRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
+    const markLoaded = (key: string) => {
+      loadedKeysRef.current.add(key);
+      if (loadedKeysRef.current.size === 5) {
+        setLoading(false);
+      }
+    };
+
     // Listen to time_periods document
     const unsubscribeTP = onSnapshot(
       doc(db, 'settings', 'time_periods'),
@@ -56,11 +65,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             timePeriods: data.value || defaultTimePeriods,
           }));
         }
-        setLoading(false);
+        markLoaded('time_periods');
       },
       (err) => {
         console.error('Error listening to time_periods:', err);
-        setLoading(false);
+        markLoaded('time_periods');
       }
     );
 
@@ -73,9 +82,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           ...prev,
           bookingRange: val || defaultSettings.bookingRange,
         }));
+        markLoaded('booking_range');
       },
       (err) => {
         console.error('Error listening to booking_range:', err);
+        markLoaded('booking_range');
       }
     );
 
@@ -88,9 +99,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           ...prev,
           teamMemberLimits: val || defaultSettings.teamMemberLimits,
         }));
+        markLoaded('team_member_limits');
       },
       (err) => {
         console.error('Error listening to team_member_limits:', err);
+        markLoaded('team_member_limits');
       }
     );
 
@@ -103,9 +116,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           ...prev,
           allowUserCancellation: val !== undefined ? !!val : defaultSettings.allowUserCancellation,
         }));
+        markLoaded('allow_user_cancellation');
       },
       (err) => {
         console.error('Error listening to allow_user_cancellation:', err);
+        markLoaded('allow_user_cancellation');
       }
     );
 
@@ -118,9 +133,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           ...prev,
           evaluationFields: val || defaultEvaluationFields,
         }));
+        markLoaded('evaluation_fields');
       },
       (err) => {
         console.error('Error listening to evaluation_fields:', err);
+        markLoaded('evaluation_fields');
       }
     );
 

@@ -1,54 +1,47 @@
 import { describe, it, expect } from 'vitest';
-import { services, rooms } from '@/data/initialData';
+import { churches, timePeriods, ALLOWED_DAYS, getDateRange } from '@/data/initialData';
 
-describe('initialData - services', () => {
-  it('exports an array of services', () => {
-    expect(Array.isArray(services)).toBe(true);
+describe('initialData - churches', () => {
+  it('exports an array of churches', () => {
+    expect(Array.isArray(churches)).toBe(true);
+    expect(churches.length).toBeGreaterThan(0);
   });
 
-  it('has services with required fields', () => {
-    services.forEach((service) => {
-      expect(service).toHaveProperty('id');
-      expect(service).toHaveProperty('name');
-      expect(service).toHaveProperty('color');
-    });
+  it('contains expected church names', () => {
+    expect(churches).toContain('العذراء بالفجالة');
+    expect(churches).toContain('مارجرجس بالقللى');
+  });
+});
+
+describe('initialData - timePeriods', () => {
+  it('exports an array of time periods', () => {
+    expect(Array.isArray(timePeriods)).toBe(true);
+    expect(timePeriods.length).toBe(3);
   });
 
-  it('each service has a unique id', () => {
-    const ids = services.map((s) => s.id);
-    const uniqueIds = new Set(ids);
-    expect(uniqueIds.size).toBe(ids.length);
-  });
-
-  it('each service color is a valid hex color', () => {
-    const hexColorRegex = /^#[0-9A-Fa-f]{6}$/;
-    services.forEach((service) => {
-      expect(service.color).toMatch(hexColorRegex);
+  it('each time period has required fields', () => {
+    timePeriods.forEach((period) => {
+      expect(period).toHaveProperty('id');
+      expect(period).toHaveProperty('label');
+      expect(period).toHaveProperty('startTime');
+      expect(period).toHaveProperty('endTime');
     });
   });
 });
 
-describe('initialData - rooms', () => {
-  it('exports an array of rooms', () => {
-    expect(Array.isArray(rooms)).toBe(true);
+describe('initialData - restrictions', () => {
+  it('exports allowed days of week', () => {
+    expect(Array.isArray(ALLOWED_DAYS)).toBe(true);
+    expect(ALLOWED_DAYS).toEqual([0, 1, 2, 3]);
   });
 
-  it('each room has required fields', () => {
-    rooms.forEach((room) => {
-      expect(room).toHaveProperty('id');
-      expect(room).toHaveProperty('name');
-    });
-  });
-
-  it('each room has a unique id', () => {
-    const ids = rooms.map((r) => r.id);
-    const uniqueIds = new Set(ids);
-    expect(uniqueIds.size).toBe(ids.length);
-  });
-
-  it('outside room requires custom location', () => {
-    const outside = rooms.find((r) => r.id === 'outside');
-    expect(outside).toBeDefined();
-    expect(outside?.requiresCustomLocation).toBe(true);
+  it('getDateRange returns correct start and end bounds', () => {
+    const range = getDateRange(6, 8);
+    expect(range.start.getMonth()).toBe(6);
+    expect(range.start.getDate()).toBe(1);
+    
+    // end of September should be 30th
+    expect(range.end.getMonth()).toBe(8);
+    expect(range.end.getDate()).toBe(30);
   });
 });

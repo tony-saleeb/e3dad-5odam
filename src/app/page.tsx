@@ -12,6 +12,7 @@ import SignInPage from '@/components/SignInPage';
 import SetupTeamPage from '@/components/SetupTeamPage';
 import { ToastContainer } from '@/components/Toast';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -40,37 +41,39 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <Header />
+    <ErrorBoundary>
+      <div className="min-h-screen bg-slate-50">
+        {/* Header */}
+        <Header />
 
-      {/* Main Content */}
-      <main className="max-w-400 mx-auto px-4 py-4 lg:px-6 lg:py-6">
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-          {/* Weekly Schedule - Main Area */}
-          <div className="flex-1 min-w-0">
-            <WeeklySchedule />
+        {/* Main Content */}
+        <main className="max-w-400 mx-auto px-4 py-4 lg:px-6 lg:py-6">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+            {/* Weekly Schedule - Main Area */}
+            <div className="flex-1 min-w-0">
+              <WeeklySchedule />
+            </div>
+
+            {/* Sidebar - Below on mobile, Right on desktop */}
+            <div className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:space-y-6">
+              <MiniCalendar />
+            </div>
           </div>
+        </main>
 
-          {/* Sidebar - Below on mobile, Right on desktop */}
-          <div className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:space-y-6">
-            <MiniCalendar />
-          </div>
-        </div>
-      </main>
-
-      {/* Modals */}
-      <BookingModal />
-      <AdminDashboard />
-      <ServantPortal />
-      <EventModal 
-        booking={selectedEvent}
-        isOpen={isEventModalOpen}
-        onClose={closeEventModal}
-      />
-      
-      {/* Toast Notifications */}
-      <ToastContainer />
-    </div>
+        {/* Modals */}
+        <BookingModal />
+        <AdminDashboard />
+        <ServantPortal />
+        <EventModal 
+          booking={selectedEvent}
+          isOpen={isEventModalOpen}
+          onClose={closeEventModal}
+        />
+        
+        {/* Toast Notifications */}
+        <ToastContainer />
+      </div>
+    </ErrorBoundary>
   );
 }

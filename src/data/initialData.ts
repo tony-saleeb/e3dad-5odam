@@ -1,90 +1,7 @@
 // Static data for Church Facility Scheduler
 // Services and Rooms - these don't need to be in the database
 
-import { Service, Room, TimePeriod } from '@/types';
-
-export const services: Service[] = [
-  {
-    id: 'preschool',
-    name: 'Pre-School',
-    color: '#EC4899',
-    gradient: 'from-pink-500 to-pink-600',
-    description: 'ما قبل المدرسة',
-  },
-  {
-    id: 'kg',
-    name: 'KG',
-    color: '#F97316',
-    gradient: 'from-orange-500 to-orange-600',
-    description: 'رياض الأطفال',
-  },
-  {
-    id: 'primary',
-    name: 'ابتدائى',
-    color: '#EAB308',
-    gradient: 'from-yellow-500 to-yellow-600',
-    description: 'المرحلة الابتدائية',
-  },
-  {
-    id: 'primary56',
-    name: 'خامسة و سادسة ابتدائي',
-    color: '#84CC16',
-    gradient: 'from-lime-500 to-lime-600',
-    description: 'الصف الخامس والسادس',
-  },
-  {
-    id: 'middle',
-    name: 'اعدادى',
-    color: '#22C55E',
-    gradient: 'from-green-500 to-green-600',
-    description: 'المرحلة الاعدادية',
-  },
-  {
-    id: 'high',
-    name: 'ثانوي',
-    color: '#14B8A6',
-    gradient: 'from-teal-500 to-teal-600',
-    description: 'المرحلة الثانوية',
-  },
-  {
-    id: 'youth',
-    name: 'شباب',
-    color: '#3B82F6',
-    gradient: 'from-blue-500 to-blue-600',
-    description: 'خدمة الشباب',
-  },
-  {
-    id: 'graduates',
-    name: 'خريجين',
-    color: '#8B5CF6',
-    gradient: 'from-purple-500 to-purple-600',
-    description: 'خدمة الخريجين',
-  },
-  {
-    id: 'scouts',
-    name: 'كشافة',
-    color: '#A855F7',
-    gradient: 'from-violet-500 to-violet-600',
-    description: 'فريق الكشافة',
-  },
-  {
-    id: 'workcamp',
-    name: 'معسكر العمل',
-    color: '#D946EF',
-    gradient: 'from-fuchsia-500 to-fuchsia-600',
-    description: 'معسكر العمل الصيفي',
-  },
-];
-
-export const rooms: Room[] = [
-  { id: 'big-club', name: 'النادي الكبير' },
-  { id: 'marina-club', name: 'نادي القديسة مارينا' },
-  { id: 'building', name: 'المبني' },
-  { id: 'main-church', name: 'الكنيسة الرئيسية' },
-  { id: 'st-paul', name: 'كنيسة القديس بولس' },
-  { id: 'abu-sefein', name: 'كنيسة ابو سيفين' },
-  { id: 'outside', name: 'خارج الكنيسة', requiresCustomLocation: true },
-];
+import { TimePeriod } from '@/types';
 
 export const churches = [
   'العذراء بالفجالة',
@@ -218,6 +135,6 @@ export const getDateRange = (startMonth = 6, endMonth = 8) => {
   const year = new Date().getFullYear();
   return {
     start: new Date(year, startMonth, 1),
-    end: new Date(year, endMonth, 30),
+    end: new Date(year, endMonth + 1, 0), // Last day of endMonth (handles 28/29/30/31 correctly)
   };
 };

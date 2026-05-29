@@ -24,10 +24,7 @@ service cloud.firestore {
 
     // Helper: Check if current user is an Admin
     function isAdmin() {
-      return isSignedIn() && (
-        currentUserEmail() == 'tonysaleeb23@gmail.com' ||
-        (userExists() && getUserData().role == 'admin')
-      );
+      return isSignedIn() && userExists() && getUserData().role == 'admin';
     }
 
     // Helper: Check if current user is a Servant
@@ -50,16 +47,18 @@ service cloud.firestore {
       // Signed-in users can read their own allowed user profile
       allow read: if isSignedIn() && currentUserEmail() == email.lower();
       
-      // Users can update their own profile details (e.g. SetupTeamPage setup)
-      allow update: if isSignedIn() && currentUserEmail() == email.lower();
+      // Users can update their own profile details (e.g. SetupTeamPage setup) - blocks self-privilege escalation
+      allow update: if isSignedIn() && currentUserEmail() == email.lower() &&
+                    request.resource.data.role == resource.data.role &&
+                    request.resource.data.email == resource.data.email;
     }
 
     // ==========================================
     // 2. Bookings Rules (Calendar slots & projects)
     // ==========================================
     match /bookings/{bookingId} {
-      // Public Read: Allowed so the calendar schedule is visible immediately on land/sign-in
-      allow read: if true;
+      // Read: Only signed-in users can view bookings (protects personal data)
+      allow read: if isSignedIn();
       
       // Create: Authenticated users can book a slot
       allow create: if isSignedIn();

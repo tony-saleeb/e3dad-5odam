@@ -6,11 +6,15 @@ import { useBookingsContext } from '@/contexts/BookingsContext';
 export function useBookings() {
   const {
     bookings,
+    allBookingsIncludingCancelled,
     loading,
     error,
     addBooking,
     updateBookingStatus,
     deleteBooking,
+    restoreBooking,
+    syncAllBookingsToSheets,
+    syncQueueSize,
     refreshBookings
   } = useBookingsContext();
 
@@ -35,7 +39,7 @@ export function useBookings() {
   const isPeriodBooked = useCallback(
     (date: string, startTime: string, endTime: string) => {
       return bookings.some(
-        (b) =>
+         (b) =>
           b.date === date &&
           b.startTime === startTime &&
           b.endTime === endTime &&
@@ -58,11 +62,15 @@ export function useBookings() {
 
   return {
     bookings,
+    allBookingsIncludingCancelled,
     loading,
     error,
     addBooking,
     updateBookingStatus,
     deleteBooking,
+    restoreBooking,
+    syncAllBookingsToSheets,
+    syncQueueSize,
     getBookingsForDate,
     getPendingBookings,
     getUserBookings,

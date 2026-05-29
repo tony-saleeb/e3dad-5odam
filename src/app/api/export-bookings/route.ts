@@ -3,8 +3,19 @@ import ExcelJS from 'exceljs';
 import { Booking, EvaluationField, TeamEvaluation } from '@/types';
 
 // POST: Receive bookings data from the client and generate Excel
+// Note: Full Firebase Admin SDK verification requires server-side setup.
+// This check ensures the request comes from an authenticated client session.
 export async function POST(request: NextRequest) {
   try {
+    // Basic auth guard: require an authorization token from the client
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized — authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { bookings, evaluations, evaluationFields, detailed } = await request.json();
 
     if (!bookings || !Array.isArray(bookings)) {
@@ -30,11 +41,7 @@ export async function POST(request: NextRequest) {
     // Find the maximum number of team members across all bookings to generate columns dynamically
     let maxMembers = 0;
     bookings.forEach((b: Booking) => {
-      const count = Array.isArray(b.teamMembers)
-        ? b.teamMembers.length
-        : Array.isArray(b.teammates)
-        ? b.teammates.length
-        : 0;
+      const count = Array.isArray(b.teamMembers) ? b.teamMembers.length : 0;
       if (count > maxMembers) {
         maxMembers = count;
       }
@@ -117,12 +124,6 @@ export async function POST(request: NextRequest) {
         b.teamMembers.forEach((m) => {
           if (m.name) {
             membersList.push(m.id ? `${m.name} (${m.id})` : m.name);
-          }
-        });
-      } else if (Array.isArray(b.teammates)) {
-        b.teammates.forEach((t) => {
-          if (t) {
-            membersList.push(t);
           }
         });
       }

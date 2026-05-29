@@ -31,12 +31,21 @@ interface Evaluation {
 export default function AdminDashboard() {
   const { isAdmin } = useAuth();
   const { isAdminDashboardOpen, closeAdminDashboard } = useSchedulerStore();
-  const { bookings } = useBookings();
+  const {
+    bookings,
+    allBookingsIncludingCancelled,
+    restoreBooking
+  } = useBookings();
   const { settings, updateSettings } = useSettings();
 
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'settings' | 'evaluations'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'archive'>('users');
+
+  // Restoration and archive state
+  const [restoringBookingId, setRestoringBookingId] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState('');
+  const [archiveSuccess, setArchiveSuccess] = useState('');
 
   // Add user form
   const [newEmail, setNewEmail] = useState('');
@@ -220,6 +229,7 @@ export default function AdminDashboard() {
                   { id: 'users', label: 'المستخدمون' },
                   { id: 'bookings', label: 'سجل المشاريع' },
                   { id: 'evaluations', label: 'نتائج التقييم' },
+                  { id: 'archive', label: 'الأرشيف والملغى' },
                   { id: 'settings', label: 'إعدادات النظام' }
                 ] as const
               ).map(tab => (
@@ -416,7 +426,7 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1 scrollbar-hide">
                     {bookings.map((b) => {
-                      const memberCount = b.teamMembers ? b.teamMembers.length : (b.teammates || []).length;
+                      const memberCount = b.teamMembers ? b.teamMembers.length : 0;
                       return (
                         <div key={b.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 sm:px-4 sm:py-3.5 rounded-2xl transition-all duration-200 gap-3.5 sm:gap-4 hover:shadow-2xs">
                           <div className="flex-1 min-w-0">
@@ -944,6 +954,114 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })()}
+              </div>
+            )}
+
+            {/* ARCHIVE TAB */}
+            {activeTab === 'archive' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="bg-slate-50/50 p-5 rounded-3xl border border-slate-100">
+                  <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+                    <span className="w-1.5 h-4 rounded-full bg-slate-700 inline-block" />
+                    أرشيف الحجوزات الملغاة
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">
+                    يمكنك هنا استعراض الحجوزات التي تم إلغاؤها، ومعرفة من قام بالإلغاء، أو استعادتها بأمان إلى جدول المواعيد النشط.
+                  </p>
+                </div>
+
+                {archiveError && (
+                  <div className="p-3.5 rounded-2xl text-xs font-bold text-center bg-rose-50 text-rose-800 border border-rose-100">
+                    {archiveError}
+                  </div>
+                )}
+
+                {archiveSuccess && (
+                  <div className="p-3.5 rounded-2xl text-xs font-bold text-center bg-emerald-50 text-emerald-800 border border-emerald-100">
+                    {archiveSuccess}
+                  </div>
+                )}
+
+                {allBookingsIncludingCancelled.filter(b => b.status === 'cancelled').length === 0 ? (
+                  <div className="text-center py-16 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
+                    لا توجد حجوزات ملغاة في الأرشيف حالياً.
+                  </div>
+                ) : (
+                  <div className="space-y-3.5 max-h-[45vh] overflow-y-auto pr-1 scrollbar-hide">
+                    {allBookingsIncludingCancelled
+                      .filter(b => b.status === 'cancelled')
+                      .map((b) => {
+                        const isRestoring = restoringBookingId === b.id;
+                        return (
+                          <div 
+                            key={b.id} 
+                            className="flex flex-col md:flex-row md:items-center md:justify-between bg-slate-50/30 hover:bg-slate-50/70 border border-slate-100 p-5 rounded-3xl transition-all duration-200 gap-4 hover:shadow-2xs"
+                          >
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="w-2 h-4 rounded-full bg-slate-500 shrink-0" />
+                                <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{b.churchName}</p>
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-rose-50 text-rose-700 border border-rose-200/50 leading-none">
+                                  ملغى
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-500 font-bold">
+                                <span className="text-slate-400 font-black">المشروع:</span> {b.title}
+                              </p>
+                              <p className="text-[11px] text-slate-450 font-bold flex flex-wrap items-center gap-1">
+                                <span className="text-slate-400">القائد:</span> 
+                                <span className="text-slate-800 font-black">{b.requesterName}</span> 
+                                <span className="text-slate-400 font-semibold" dir="ltr">({b.requesterEmail})</span>
+                              </p>
+                              {/* Audit trail */}
+                              <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] text-slate-400 font-bold">
+                                <span>
+                                  🗓️ الموعد الأصلي: {b.date} ({b.startTime} - {b.endTime})
+                                </span>
+                                {b.cancelledAt && (
+                                  <span>
+                                    ⏱️ وقت الإلغاء: {new Date(b.cancelledAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                                  </span>
+                                )}
+                                {b.cancelledBy && (
+                                  <span>
+                                    👤 بواسطة: <strong className="text-slate-600 font-black">{b.cancelledBy}</strong>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={async () => {
+                                setRestoringBookingId(b.id);
+                                setArchiveError('');
+                                setArchiveSuccess('');
+                                try {
+                                  await restoreBooking(b.id);
+                                  setArchiveSuccess('تمت استعادة الحجز بنجاح وإعادته إلى المخطط الأسبوعي.');
+                                } catch (err) {
+                                  setArchiveError(err instanceof Error ? err.message : 'فشلت استعادة الحجز. يرجى التحقق من توفر الموعد.');
+                                } finally {
+                                  setRestoringBookingId(null);
+                                }
+                              }}
+                              disabled={isRestoring}
+                              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl text-xs transition-all shadow-md shadow-slate-800/10 active:scale-95 disabled:opacity-50 cursor-pointer w-full md:w-auto text-center flex items-center justify-center gap-2 shrink-0"
+                            >
+                              {isRestoring ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  جاري الاستعادة...
+                                </>
+                              ) : (
+                                'استعادة الحجز'
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -44,12 +44,17 @@ export default function MiniCalendar() {
   const year = new Date().getFullYear();
   const dateRange = useMemo(() => ({
     start: new Date(year, startMonth, 1),
-    end: new Date(year, endMonth, 30),
+    end: new Date(year, endMonth + 1, 0),
   }), [year, startMonth, endMonth]);
   
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsMounted(true);
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) setIsMounted(true);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const monthStart = startOfMonth(currentMonth);
@@ -169,6 +174,7 @@ export default function MiniCalendar() {
           onClick={handleNext}
           // CHURCH ADAPTATION: Disable if at boundary
           disabled={viewMode === 'days' && !canGoNextMonth}
+          aria-label="الشهر التالي"
           className={`p-1.5 rounded-lg transition-colors ${
             viewMode === 'days' && !canGoNextMonth
               ? 'text-gray-200 cursor-not-allowed'
@@ -195,6 +201,7 @@ export default function MiniCalendar() {
           onClick={handlePrev}
           // CHURCH ADAPTATION: Disable if at boundary
           disabled={viewMode === 'days' && !canGoPrevMonth}
+          aria-label="الشهر السابق"
           className={`p-1.5 rounded-lg transition-colors ${
             viewMode === 'days' && !canGoPrevMonth
               ? 'text-gray-200 cursor-not-allowed'

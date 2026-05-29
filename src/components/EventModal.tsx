@@ -23,7 +23,6 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
   const { openServantPortal, setGradingBooking } = useSchedulerStore();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [realtimeAllowCancellation, setRealtimeAllowCancellation] = useState<boolean | null>(null);
   const [hasEvaluated, setHasEvaluated] = useState(false);
 
   // Listen to check if the servant has already evaluated this booking
@@ -45,36 +44,24 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
     return () => unsub();
   }, [isOpen, booking, user, isServant]);
 
-  // Directly observe the allow_user_cancellation document from Firestore in real-time
+  // Escape key listener for accessibility
   useEffect(() => {
-    if (!isOpen || !booking) return;
-    const ref = doc(db, 'settings', 'allow_user_cancellation');
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        if (snap.exists()) {
-          const val = snap.data().value;
-          setRealtimeAllowCancellation(val !== false);
-        } else {
-          setRealtimeAllowCancellation(true);
-        }
-      },
-      (err) => {
-        console.error('[EventModal] Real-time settings fetch failed:', err);
-        setRealtimeAllowCancellation(true);
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
       }
-    );
-    return () => unsub();
-  }, [isOpen, booking]);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !booking) return null;
 
   const isOwner = !!user?.email && !!booking.requesterEmail && user.email.toLowerCase() === booking.requesterEmail.toLowerCase();
   
-  // Use the realtime direct subscription value with a safe fallback to context/defaults
-  const isCancellationAllowedForUser = realtimeAllowCancellation !== null 
-    ? realtimeAllowCancellation 
-    : (settings.allowUserCancellation !== false);
+  // Use SettingsContext which already has a real-time listener on this document
+  const isCancellationAllowedForUser = settings.allowUserCancellation !== false;
 
   const canModify = isAdmin || (isOwner && isCancellationAllowedForUser);
 
@@ -105,8 +92,8 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
     }
   };
 
-  // Resolve team members: prefer new teamMembers array, fall back to teammates
-  const members = booking.teamMembers || (booking.teammates || []).map(name => ({ name, id: '—' }));
+  // Resolve team members
+  const members = booking.teamMembers || [];
   const churchColor = getChurchColor(booking.churchName);
 
   return (
