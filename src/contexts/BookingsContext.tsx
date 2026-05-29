@@ -13,7 +13,6 @@ import {
   serverTimestamp,
   DocumentData,
   runTransaction,
-  getDoc,
 } from 'firebase/firestore';
 import { Booking, BookingStatus } from '@/types';
 import { useGlobalSettings } from '@/contexts/SettingsContext';
@@ -165,15 +164,6 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     async (id: string, status: BookingStatus, rejectionReason?: string) => {
       try {
         const ref = doc(db, 'bookings', id);
-        
-        // Fetch booking to get user email
-        const snap = await getDoc(ref);
-        let userEmail = '';
-        let projectName = '';
-        if (snap.exists()) {
-          userEmail = snap.data().requesterEmail;
-          projectName = snap.data().title;
-        }
 
         await updateDoc(ref, { status, rejectionReason: rejectionReason || null });
 

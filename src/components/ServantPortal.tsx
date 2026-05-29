@@ -286,7 +286,7 @@ export default function ServantPortal() {
                       canEdit = false;
                     }
                   } else {
-                    canEdit = false; // Disable if time string is unparseable
+                    canEdit = false; // Disable if time string is invalid
                   }
                 }
 

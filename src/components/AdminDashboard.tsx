@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, setDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, setDoc, deleteDoc, doc, onSnapshot, updateDoc, query, where } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
@@ -139,8 +139,8 @@ export default function AdminDashboard() {
     setLoadingRequests(true);
     const q = query(collection(db, 'access_requests'), where('status', '==', 'pending'));
     const unsub = onSnapshot(q, (snap) => {
-      const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() })) as AccessRequest[];
-      setAccessRequests(reqs);
+      const requests = snap.docs.map(d => ({ id: d.id, ...d.data() })) as AccessRequest[];
+      setAccessRequests(requests);
       setLoadingRequests(false);
     }, () => setLoadingRequests(false));
     return unsub;
@@ -1444,7 +1444,7 @@ export default function AdminDashboard() {
                               />
                             </div>
                             
-                            <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-transparent to-white/50 pointer-events-none z-0" />
+                            <div className="absolute left-0 top-0 bottom-0 w-32 bg-linear-to-r from-transparent to-white/50 pointer-events-none z-0" />
                           </div>
                         );
                       })}
@@ -1460,7 +1460,7 @@ export default function AdminDashboard() {
 
       {/* Delete User Confirmation Modal */}
       {confirmDeleteUser && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setConfirmDeleteUser(null)} />
           <div className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-scale-in">
             <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-4 mx-auto">
@@ -1482,7 +1482,7 @@ export default function AdminDashboard() {
 
       {/* Restore Booking Confirmation Modal */}
       {confirmRestoreBooking && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setConfirmRestoreBooking(null)} />
           <div className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-scale-in">
             <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4 mx-auto">

@@ -32,7 +32,7 @@ let cacheExpirationTime = 0;
 export default function BookingModal() {
   const { isAdmin, user } = useAuth();
   const { settings } = useSettings();
-  const { timePeriods, teamMemberLimits } = settings;
+  const { teamMemberLimits } = settings;
   const { addBooking, isPeriodBooked, hasUserAlreadyBooked, bookings } = useBookings();
   const {
     isBookingModalOpen,
