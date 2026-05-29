@@ -76,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const isHardcodedAdmin = ADMIN_EMAILS.includes(email);
             if (!isHardcodedAdmin) {
               setLastFailedEmail(email);
-              await firebaseSignOut(auth);
               setAuthError('هذا البريد الإلكتروني غير مصرح له بالدخول. يرجى التواصل مع المسؤول.');
               setUser(null);
               setLoading(false);
