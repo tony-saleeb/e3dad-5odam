@@ -10,7 +10,6 @@ import EventModal from '@/components/EventModal';
 import ServantPortal from '@/components/ServantPortal';
 import SignInPage from '@/components/SignInPage';
 import SetupTeamPage from '@/components/SetupTeamPage';
-import TeamSuccessPage from '@/components/TeamSuccessPage';
 import { ToastContainer } from '@/components/Toast';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -39,11 +38,6 @@ export default function Home() {
   // Team leader (user role): show SetupTeamPage if data not yet entered, or if editing
   if (user.role === 'user' && (!user.teamDetails || isEditingTeamDetails)) {
     return <SetupTeamPage />;
-  }
-
-  // Team leader (user role) with completed data: show success page (NO calendar access)
-  if (user.role === 'user' && user.teamDetails) {
-    return <TeamSuccessPage />;
   }
 
   return (

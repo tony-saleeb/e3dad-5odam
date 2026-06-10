@@ -22,9 +22,14 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/allowed_users/$(currentUserEmail())).data;
     }
 
+    // Helper: Check if current user is the owner/hardcoded admin
+    function isHardcodedAdmin() {
+      return isSignedIn() && currentUserEmail() == 'tonysaleeb23@gmail.com';
+    }
+
     // Helper: Check if current user is an Admin
     function isAdmin() {
-      return isSignedIn() && userExists() && getUserData().role == 'admin';
+      return isSignedIn() && (isHardcodedAdmin() || (userExists() && getUserData().role == 'admin'));
     }
 
     // Helper: Check if current user is a Servant
@@ -70,8 +75,8 @@ service cloud.firestore {
       // Read: Only signed-in users can view bookings (protects personal data)
       allow read: if isSignedIn();
       
-      // Create: Authenticated users (church leaders and admins) can book a slot
-      allow create: if isSignedIn();
+      // Create: Admins can book any slot, Church Leaders can only book for their own church
+      allow create: if isAdmin() || (isChurchLeader() && request.resource.data.churchName == getUserData().churchName);
       
       // Update/Delete: Only the original creator of the booking, their Church Leader, or an Admin can modify it
       allow update, delete: if isAdmin() || (isSignedIn() && (
