@@ -56,16 +56,18 @@ service cloud.firestore {
     // 1. Allowed Users Rules (Allowed emails & roles)
     // ==========================================
     match /allowed_users/{email} {
-      // Admins can manage all users
-      allow read, write: if isAdmin();
-      
       // Read: Any signed-in user can read allowed users (needed to query group counts and select church teams)
       allow read: if isSignedIn();
       
-      // Users and church leaders can update their own profile details - blocks self-privilege escalation
-      allow update: if isSignedIn() && currentUserEmail() == email.lower() &&
+      // Create/Delete: Only Admins can create or delete allowed users
+      allow create, delete: if isAdmin();
+      
+      // Update: Admins can update any user; users and church leaders can update their own profile details
+      allow update: if isAdmin() || (
+                    isSignedIn() && currentUserEmail() == email.lower() &&
                     request.resource.data.role == resource.data.role &&
-                    request.resource.data.email == resource.data.email;
+                    request.resource.data.email == resource.data.email
+      );
     }
 
     // ==========================================
