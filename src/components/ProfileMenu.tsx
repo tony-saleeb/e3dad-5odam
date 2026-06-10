@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
+import { getChurchColor } from '@/data/initialData';
 
 interface ProfileMenuProps {
   onClose: () => void;
@@ -11,6 +12,8 @@ interface ProfileMenuProps {
 export default function ProfileMenu({ onClose, variant }: ProfileMenuProps) {
   const { user, isAdmin, isServant, isChurchLeader, signOut } = useAuth();
   const { openAdminDashboard, setIsEditingTeamDetails, openServantPortal } = useSchedulerStore();
+
+  const churchName = isChurchLeader ? user?.churchName : (!isAdmin && !isServant ? user?.teamDetails?.churchName : undefined);
 
   const isMobile = variant === 'mobile';
 
@@ -64,10 +67,18 @@ export default function ProfileMenu({ onClose, variant }: ProfileMenuProps) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-black text-slate-800 truncate">{user?.displayName || 'المستخدم'}</p>
             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-            <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-              <span className="w-1 h-1 rounded-full bg-indigo-500" />
-              {isAdmin ? 'مسؤول' : isServant ? 'مقيم' : isChurchLeader ? 'مسؤول كنيسة' : 'قائد فريق'}
-            </span>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                <span className="w-1 h-1 rounded-full bg-indigo-500" />
+                {isAdmin ? 'مسؤول' : isServant ? 'مقيم' : isChurchLeader ? 'مسؤول كنيسة' : 'قائد فريق'}
+              </span>
+              {churchName && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${getChurchColor(churchName).badge} border`}>
+                  <span className="w-1 h-1 rounded-full" style={{ backgroundColor: getChurchColor(churchName).hex }} />
+                  {churchName}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
