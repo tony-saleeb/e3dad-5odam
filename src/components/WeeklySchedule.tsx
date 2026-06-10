@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBookings } from "@/hooks/useBookings";
 import { useSettings } from "@/hooks/useSettings";
@@ -63,6 +63,30 @@ export default function WeeklySchedule() {
   const visibleDays = useMemo(() => weekDays.filter(isDayInBounds), [weekDays, isDayInBounds]);
 
   const [mobileSelectedDayIndex, setMobileSelectedDayIndex] = useState(0);
+
+  // Initially center calendar on user's booking if they have one
+  const hasNavigatedRef = useRef(false);
+
+  useEffect(() => {
+    if (bookingsLoading || !user || user.role !== 'user' || hasNavigatedRef.current) return;
+
+    const userBooking = bookings.find(
+      (b) => (b.requesterEmail || '').toLowerCase() === (user.email || '').toLowerCase() && b.status !== 'rejected'
+    );
+
+    if (userBooking && userBooking.date) {
+      try {
+        const bookingDate = new Date(userBooking.date);
+        if (!isNaN(bookingDate.getTime())) {
+          setCurrentMonth(bookingDate);
+          setSelectedDate(userBooking.date);
+          hasNavigatedRef.current = true;
+        }
+      } catch (err) {
+        console.error('Failed to parse booking date for initial navigation:', err);
+      }
+    }
+  }, [user, bookings, bookingsLoading, setCurrentMonth, setSelectedDate]);
 
   useEffect(() => {
     let active = true;
