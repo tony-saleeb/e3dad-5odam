@@ -24,8 +24,14 @@ export default function WeeklySchedule() {
 
   // Day-locking logic for church leaders
   const churchName = user?.churchName || '';
-  const churchBookedDays = isChurchLeader && churchName ? getChurchBookedDays(churchName) : [];
-  const churchGroupCount = isChurchLeader && churchName ? getChurchGroupCount(churchName) : 0;
+  const churchBookedDays = useMemo(() => {
+    return isChurchLeader && churchName ? getChurchBookedDays(churchName) : [];
+  }, [isChurchLeader, churchName, getChurchBookedDays]);
+
+  const churchGroupCount = useMemo(() => {
+    return isChurchLeader && churchName ? getChurchGroupCount(churchName) : 0;
+  }, [isChurchLeader, churchName, getChurchGroupCount]);
+
   const maxBookingDays = churchGroupCount > 3 ? 2 : 1;
   const churchReachedMaxDays = isChurchLeader && churchBookedDays.length >= maxBookingDays;
 
@@ -240,7 +246,7 @@ export default function WeeklySchedule() {
                 disabled={!canGoNextWeek}
                 aria-label="الأسبوع التالي"
                 className={`p-1.5 rounded-lg transition-all ${
-                  !canGoNextWeek ? "opacity-20 cursor-not-allowed text-gray-300" : "hover:bg-gray-100 active:bg-gray-200 text-gray-500"
+                  canGoNextWeek ? "hover:bg-gray-100 active:bg-gray-200 text-gray-500" : "opacity-20 cursor-not-allowed text-gray-300"
                 }`}
               >
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -251,7 +257,7 @@ export default function WeeklySchedule() {
                 disabled={!canGoPrevWeek}
                 aria-label="الأسبوع السابق"
                 className={`p-1.5 rounded-lg transition-all ${
-                  !canGoPrevWeek ? "opacity-20 cursor-not-allowed text-gray-300" : "hover:bg-gray-100 active:bg-gray-200 text-gray-500"
+                  canGoPrevWeek ? "hover:bg-gray-100 active:bg-gray-200 text-gray-500" : "opacity-20 cursor-not-allowed text-gray-300"
                 }`}
               >
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -372,7 +378,7 @@ export default function WeeklySchedule() {
                 disabled={!canGoNextWeek}
                 aria-label="الأسبوع التالي"
                 className={`p-2 rounded-xl bg-white shadow-sm border border-slate-100 text-slate-500 transition-all ${
-                  !canGoNextWeek ? "opacity-30 cursor-not-allowed text-gray-300" : "hover:text-slate-700 hover:shadow"
+                  canGoNextWeek ? "hover:text-slate-700 hover:shadow" : "opacity-30 cursor-not-allowed text-gray-300"
                 }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
@@ -382,7 +388,7 @@ export default function WeeklySchedule() {
                 disabled={!canGoPrevWeek}
                 aria-label="الأسبوع السابق"
                 className={`p-2 rounded-xl bg-white shadow-sm border border-slate-100 text-slate-500 transition-all ${
-                  !canGoPrevWeek ? "opacity-30 cursor-not-allowed text-gray-300" : "hover:text-slate-700 hover:shadow"
+                  canGoPrevWeek ? "hover:text-slate-700 hover:shadow" : "opacity-30 cursor-not-allowed text-gray-300"
                 }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>

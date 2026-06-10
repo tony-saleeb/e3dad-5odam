@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, setDoc, deleteDoc, doc, onSnapshot, updateDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, setDoc, deleteDoc, doc, onSnapshot, updateDoc, query, where, writeBatch } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
 import { getChurchColor, churches } from '@/data/initialData';
+import { useToast } from '@/components/Toast';
 
 interface AllowedUser {
   id: string;
@@ -53,6 +54,8 @@ export default function AdminDashboard() {
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'archive' | 'requests' | 'leaderboard' | 'analytics'>('users');
+  const { toast } = useToast();
+  const [importing, setImporting] = useState(false);
 
   // Restoration and archive state
   const [restoringBookingId, setRestoringBookingId] = useState<string | null>(null);
@@ -185,6 +188,96 @@ export default function AdminDashboard() {
       console.error('Error rejecting request:', err);
     } finally {
       setProcessingRequestId(null);
+    }
+  };
+
+  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      
+      const worksheet = workbook.getWorksheet(1);
+      if (!worksheet) {
+        toast.error('ملف Excel فارغ أو غير صالح');
+        return;
+      }
+
+      const usersToImport: { email: string; name: string }[] = [];
+      
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header row
+        
+        const emailCell = row.getCell(1);
+        const nameCell = row.getCell(2);
+
+        let email = '';
+        if (emailCell && emailCell.value !== null) {
+          const val = emailCell.value;
+          if (typeof val === 'object' && val !== null) {
+            const obj = val as unknown as Record<string, unknown>;
+            email = String(obj.text || obj.hyperlink || '').trim();
+          } else {
+            email = String(val).trim();
+          }
+        }
+
+        let name = '';
+        if (nameCell && nameCell.value !== null) {
+          const val = nameCell.value;
+          if (typeof val === 'object' && val !== null) {
+            const obj = val as unknown as Record<string, unknown>;
+            name = String(obj.text || '').trim();
+          } else {
+            name = String(val).trim();
+          }
+        }
+
+        if (email && name) {
+          usersToImport.push({
+            email: email.toLowerCase(),
+            name
+          });
+        }
+      });
+
+      if (usersToImport.length === 0) {
+        toast.error('لم يتم العثور على بيانات صالحة. تأكد من أن العمود الأول هو البريد الإلكتروني والعمود الثاني هو الاسم.');
+        return;
+      }
+
+      // Bulk import whitelisted team leaders in batches of 500
+      const batchLimit = 500;
+      let count = 0;
+      for (let i = 0; i < usersToImport.length; i += batchLimit) {
+        const chunk = usersToImport.slice(i, i + batchLimit);
+        const batch = writeBatch(db);
+        chunk.forEach(user => {
+          const docRef = doc(db, 'allowed_users', user.email);
+          batch.set(docRef, {
+            email: user.email,
+            name: user.name,
+            role: 'user', // Direct as team leader
+            created_at: new Date().toISOString()
+          });
+        });
+        await batch.commit();
+        count += chunk.length;
+      }
+
+      toast.success(`تم استيراد عدد ${count} من قادة الفرق بنجاح!`);
+      await fetchUsers();
+    } catch (err) {
+      console.error('[AdminDashboard] Excel import error:', err);
+      toast.error('حدث خطأ أثناء استيراد ملف Excel. تأكد من صيغة الملف.');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
     }
   };
 
@@ -403,6 +496,40 @@ export default function AdminDashboard() {
                   >
                     {adding ? 'جاري الإضافة...' : '+ إضافة'}
                   </button>
+                </div>
+
+                {/* Bulk Excel Import Section */}
+                <div className="border-t border-slate-100 my-4 pt-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
+                    <div className="text-right">
+                      <h4 className="text-sm font-bold text-slate-800 mb-1">الاستيراد الجماعي من ملف Excel</h4>
+                      <p className="text-xs text-slate-500">
+                        يرجى رفع ملف Excel يحتوي على: العمود الأول (البريد الإلكتروني)، العمود الثاني (الاسم الكامل لقادة الفرق). وسيتم استيرادهم مباشرة كقادة فرق مصرح لهم.
+                      </p>
+                    </div>
+                    <label className={`relative flex items-center justify-center gap-2 px-5 py-3 border-2 border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-xl cursor-pointer text-slate-700 text-sm font-bold transition-all shrink-0 ${importing ? 'pointer-events-none opacity-55' : ''}`}>
+                      {importing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                          <span>جاري الاستيراد...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          <span>رفع واستيراد ملف Excel</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept=".xlsx, .xls"
+                        onChange={handleExcelImport}
+                        className="hidden"
+                        disabled={importing}
+                      />
+                    </label>
+                  </div>
                 </div>
 
                 {loading ? (
