@@ -36,7 +36,7 @@ const parseBooking = (id: string, data: DocumentData): Booking => {
   if (!data) return { id } as Booking;
 
   // Firestore stores in camelCase directly — no snake_case mapping needed
-  let teamMembers = data.teamMembers;
+  let { teamMembers } = data;
   if (typeof teamMembers === 'string') {
     try { teamMembers = JSON.parse(teamMembers); } catch { teamMembers = undefined; }
   }
@@ -75,6 +75,21 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Real-time listener — Firestore onSnapshot replaces polling + Supabase channels
   useEffect(() => {
+    if (!user) {
+      let activeClear = true;
+      Promise.resolve().then(() => {
+        if (activeClear) {
+          setBookings([]);
+          setAllBookingsIncludingCancelled([]);
+          setLoading(false);
+          setError(null);
+        }
+      });
+      return () => {
+        activeClear = false;
+      };
+    }
+
     let active = true;
     Promise.resolve().then(() => {
       if (active) setLoading(true);
@@ -118,7 +133,7 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       active = false;
       unsubscribe();
     };
-  }, [startMonth, endMonth]);
+  }, [user, startMonth, endMonth]);
 
   // Manual refresh (mostly unnecessary with onSnapshot, but kept for API compat)
   const fetchBookings = useCallback(async () => {

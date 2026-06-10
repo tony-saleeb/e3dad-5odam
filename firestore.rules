@@ -37,6 +37,16 @@ service cloud.firestore {
       return isSignedIn() && userExists() && getUserData().role == 'user';
     }
 
+    // Helper: Check if current user is a Church Leader
+    function isChurchLeader() {
+      return isSignedIn() && userExists() && getUserData().role == 'church_leader';
+    }
+
+    // Helper: Check if current user is the Church Leader for a given church name
+    function isChurchLeaderFor(church) {
+      return isChurchLeader() && getUserData().churchName == church;
+    }
+
     // ==========================================
     // 1. Allowed Users Rules (Allowed emails & roles)
     // ==========================================
@@ -44,10 +54,10 @@ service cloud.firestore {
       // Admins can manage all users
       allow read, write: if isAdmin();
       
-      // Signed-in users can read their own allowed user profile
-      allow read: if isSignedIn() && currentUserEmail() == email.lower();
+      // Read: Any signed-in user can read allowed users (needed to query group counts and select church teams)
+      allow read: if isSignedIn();
       
-      // Users can update their own profile details (e.g. SetupTeamPage setup) - blocks self-privilege escalation
+      // Users and church leaders can update their own profile details - blocks self-privilege escalation
       allow update: if isSignedIn() && currentUserEmail() == email.lower() &&
                     request.resource.data.role == resource.data.role &&
                     request.resource.data.email == resource.data.email;
@@ -60,11 +70,14 @@ service cloud.firestore {
       // Read: Only signed-in users can view bookings (protects personal data)
       allow read: if isSignedIn();
       
-      // Create: Authenticated users can book a slot
+      // Create: Authenticated users (church leaders and admins) can book a slot
       allow create: if isSignedIn();
       
-      // Update/Delete: Only the original creator of the booking or an Admin can modify it
-      allow update, delete: if isAdmin() || (isSignedIn() && request.auth.token.email.lower() == resource.data.requesterEmail.lower());
+      // Update/Delete: Only the original creator of the booking, their Church Leader, or an Admin can modify it
+      allow update, delete: if isAdmin() || (isSignedIn() && (
+                              request.auth.token.email.lower() == resource.data.requesterEmail.lower() ||
+                              isChurchLeaderFor(resource.data.churchName)
+                            ));
     }
 
     // ==========================================

@@ -30,7 +30,7 @@ let cachedAllowedUsers: AllowedUser[] | null = null;
 let cacheExpirationTime = 0;
 
 export default function BookingModal() {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isChurchLeader, user } = useAuth();
   const { settings } = useSettings();
   const { teamMemberLimits } = settings;
   const { addBooking, isPeriodBooked, hasUserAlreadyBooked, bookings } = useBookings();
@@ -69,6 +69,10 @@ export default function BookingModal() {
 
   const filteredAllowedUsers = allowedUsers.filter(u => {
     if (!u.teamDetails) return false;
+    // For church leaders, only show teams from their own church
+    if (isChurchLeader && u.teamDetails.churchName !== user?.churchName) {
+      return false;
+    }
     const alreadyBooked = bookings.some(b => 
       (b.requesterEmail || '').toLowerCase() === u.email.toLowerCase() && 
       b.status !== 'rejected'
@@ -78,7 +82,7 @@ export default function BookingModal() {
 
   useEffect(() => {
     const fetchAllowedUsers = async () => {
-      if (!isBookingModalOpen || !isAdmin) return;
+      if (!isBookingModalOpen || (!isAdmin && !isChurchLeader)) return;
 
       const now = Date.now();
       if (cachedAllowedUsers && now < cacheExpirationTime) {
@@ -88,7 +92,20 @@ export default function BookingModal() {
 
       setLoadingUsers(true);
       try {
-        const snap = await getDocs(collection(db, 'allowed_users'));
+        let snap;
+        if (isAdmin) {
+          snap = await getDocs(collection(db, 'allowed_users'));
+        } else if (isChurchLeader && user?.churchName) {
+          const q = query(
+            collection(db, 'allowed_users'),
+            where('role', '==', 'user'),
+            where('teamDetails.churchName', '==', user.churchName)
+          );
+          snap = await getDocs(q);
+        } else {
+          return;
+        }
+
         const users = snap.docs.map(d => ({
           email: d.id,
           ...d.data(),
@@ -109,19 +126,20 @@ export default function BookingModal() {
     };
 
     fetchAllowedUsers();
-  }, [isBookingModalOpen, isAdmin]);
+  }, [isBookingModalOpen, isAdmin, isChurchLeader]);
 
   useEffect(() => {
     if (isBookingModalOpen) {
       const isNormalUser = user?.role === 'user' && user?.teamDetails;
+      const isChurchLeaderUser = user?.role === 'church_leader';
       setStep(isNormalUser ? 3 : 1);
       setErrors({});
       setFormData({
-        churchName: user?.teamDetails?.churchName || '',
-        title: user?.teamDetails?.title || '',
-        teamName: user?.teamDetails?.teamName || '',
-        ageGroup: user?.teamDetails?.ageGroup || '',
-        teamMembers: user?.teamDetails?.teamMembers || [],
+        churchName: isChurchLeaderUser ? (user?.churchName || '') : (user?.teamDetails?.churchName || ''),
+        title: isNormalUser ? (user?.teamDetails?.title || '') : '',
+        teamName: isNormalUser ? (user?.teamDetails?.teamName || '') : '',
+        ageGroup: isNormalUser ? (user?.teamDetails?.ageGroup || '') : '',
+        teamMembers: isNormalUser ? (user?.teamDetails?.teamMembers || []) : [],
         date: selectedDate,
         startTime: selectedStartTime || '',
         endTime: selectedEndTime || '',
@@ -236,8 +254,8 @@ export default function BookingModal() {
         }
       }
 
-      const requesterEmail = (isAdmin && selectedUser) ? selectedUser.email.toLowerCase() : (user?.email || '');
-      const primaryLeader = formData.teamMembers[0]?.name || (isAdmin && selectedUser ? selectedUser.name : '') || user?.displayName || 'مجهول';
+      const requesterEmail = ((isAdmin || isChurchLeader) && selectedUser) ? selectedUser.email.toLowerCase() : (user?.email || '');
+      const primaryLeader = formData.teamMembers[0]?.name || ((isAdmin || isChurchLeader) && selectedUser ? selectedUser.name : '') || user?.displayName || 'مجهول';
 
       await addBooking({
         title: formData.title,
@@ -296,7 +314,10 @@ export default function BookingModal() {
   const stepTitles = ['البيانات الأساسية', 'أعضاء الفريق', 'مراجعة وتأكيد'];
   const churchColor = getChurchColor(formData.churchName);
 
-  if (isAdmin) {
+  if (isAdmin || isChurchLeader) {
+    const headerGradient = isChurchLeader 
+      ? (getChurchColor(user?.churchName || '').gradient || 'bg-linear-to-r from-emerald-500 to-teal-600')
+      : 'bg-linear-to-r from-slate-800 to-slate-900';
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
         {/* Backdrop with modern glassmorphism blur */}
@@ -309,15 +330,19 @@ export default function BookingModal() {
           <div className="bg-white rounded-[28px] overflow-hidden border border-slate-100/80 max-h-[85vh] sm:max-h-[88vh] flex flex-col scrollbar-hide shadow-xl">
 
             {/* Premium Slate Header */}
-            <div className="relative px-6 py-5 bg-linear-to-r from-slate-800 to-slate-900 text-white shadow-lg overflow-hidden shrink-0">
+            <div className={`relative px-6 py-5 ${headerGradient} text-white shadow-lg overflow-hidden shrink-0`}>
               <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-size-[14px_24px]" />
               <div className="relative flex justify-between items-center gap-3">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-normal pb-1 drop-shadow-xs">
-                    {selectedUser ? "تحديد موعد الحجز للخادم" : "اختيار خادم لحجز موعد له"}
+                    {selectedUser 
+                      ? (isChurchLeader ? "تحديد موعد الحجز للمجموعة" : "تحديد موعد الحجز للخادم") 
+                      : (isChurchLeader ? "اختيار مجموعة لحجز موعد لها" : "اختيار خادم لحجز موعد له")}
                   </h2>
                   <p className="text-slate-300 text-[11px] font-bold mt-0.5">
-                    {selectedUser ? `حجز موعد للخادم: ${selectedUser.name}` : "اختر خادماً مسجلاً من القائمة لتأكيد حجز موعد له مباشرة"}
+                    {selectedUser 
+                      ? (isChurchLeader ? `حجز موعد للمجموعة: ${selectedUser.name}` : `حجز موعد للخادم: ${selectedUser.name}`) 
+                      : (isChurchLeader ? "اختر مجموعة مسجلة من كنيستك لتأكيد حجز موعد لها مباشرة" : "اختر خادماً مسجلاً من القائمة لتأكيد حجز موعد له مباشرة")}
                   </p>
                 </div>
                 <button 
@@ -341,7 +366,9 @@ export default function BookingModal() {
                       value={userSearchQuery}
                       onChange={(e) => setUserSearchQuery(e.target.value)}
                       className="w-full px-5 py-3.5 border border-slate-200 rounded-2xl focus:outline-none focus:border-slate-800 focus:ring-4 focus:ring-slate-800/5 shadow-sm font-medium text-slate-800 placeholder-slate-400 transition-all text-sm pl-10"
-                      placeholder={loadingUsers ? "جاري تحميل قائمة الخدام..." : "ابحث عن خادم بالاسم أو البريد الإلكتروني..."}
+                      placeholder={loadingUsers 
+                        ? (isChurchLeader ? "جاري تحميل قائمة مجموعات الكنيسة..." : "جاري تحميل قائمة الخدام...") 
+                        : (isChurchLeader ? "ابحث عن اسم المسؤول أو اسم المجموعة..." : "ابحث عن خادم بالاسم أو البريد الإلكتروني...")}
                       disabled={loadingUsers}
                     />
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
@@ -355,24 +382,32 @@ export default function BookingModal() {
                     {loadingUsers ? (
                       <div className="text-center py-12">
                         <div className="w-8 h-8 border-4 border-slate-800 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                        <p className="text-slate-400 text-xs font-bold">جاري تحميل قائمة الخدام...</p>
+                        <p className="text-slate-400 text-xs font-bold">جاري تحميل القائمة...</p>
                       </div>
                     ) : filteredAllowedUsers.filter(u => 
                       u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
-                      u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+                      u.email.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                      (u.teamDetails?.teamName || '').toLowerCase().includes(userSearchQuery.toLowerCase())
                     ).length === 0 ? (
                       <div className="text-center py-16 border border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
                         <svg className="w-10 h-10 text-slate-300 mx-auto mb-3 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.109A11.978 11.978 0 0112 20.25a11.962 11.962 0 01-3-1.013v-.11c0-1.113.285-2.16.786-3.07M7 10.375a3 3 0 11-6 0 3 3 0 016 0zM1.499 15.3a2.5 2.5 0 014.5-1.5M10.25 6.25a2.625 2.625 0 115.25 0 2.625 2.625 0 01-5.25 0zM16.5 10.25a2.625 2.625 0 115.25 0 2.625 2.625 0 01-5.25 0z" />
                         </svg>
-                        <p className="text-slate-500 text-sm font-black">لا يوجد خدام متاحين للحجز حالياً</p>
-                        <p className="text-slate-400 text-xs font-bold mt-1">جميع الخدام المسجلين لديهم حجز مفعل بالفعل، أو لم يقوموا بتعبئة بياناتهم بعد.</p>
+                        <p className="text-slate-500 text-sm font-black">
+                          {isChurchLeader ? "لا يوجد مجموعات غير محجوزة متاحين حالياً لكنيستك" : "لا يوجد خدام متاحين للحجز حالياً"}
+                        </p>
+                        <p className="text-slate-400 text-xs font-bold mt-1">
+                          {isChurchLeader 
+                            ? "جميع مجموعات كنيستك المسجلة لديها حجز مفعل بالفعل، أو لم تقم بتعبئة بياناتها بعد." 
+                            : "جميع الخدام المسجلين لديهم حجز مفعل بالفعل، أو لم يقوموا بتعبئة بياناتهم بعد."}
+                        </p>
                       </div>
                     ) : (
                       filteredAllowedUsers
                         .filter(u => 
                           u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
-                          u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+                          u.email.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                          (u.teamDetails?.teamName || '').toLowerCase().includes(userSearchQuery.toLowerCase())
                         )
                         .map((u) => (
                           <div
@@ -442,7 +477,7 @@ export default function BookingModal() {
                       }}
                       className="text-white hover:text-white/80 text-xs font-black px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all border border-white/15 cursor-pointer active:scale-95 leading-none shadow-3xs"
                     >
-                      تغيير الخادم
+                      تغيير
                     </button>
                   </div>
 
@@ -491,14 +526,14 @@ export default function BookingModal() {
                       teamName={selectedUser.teamDetails.teamName}
                       ageGroup={selectedUser.teamDetails.ageGroup}
                       teamMembers={selectedUser.teamDetails.teamMembers}
-                      titleText="بيانات المشروع المسجلة للخادم"
+                      titleText={isChurchLeader ? "بيانات المشروع المسجلة للمجموعة" : "بيانات المشروع المسجلة للخادم"}
                     />
                   )}
                 </div>
               )}
             </div>
 
-            {/* Footer Actions (Only visible in Selected state for Admins) */}
+            {/* Footer Actions (Only visible in Selected state for Admins/Church Leaders) */}
             {selectedUser && (
               <div className="px-6 py-4 bg-slate-50/40 flex gap-3 border-t border-slate-100 shrink-0 animate-fade-in" dir="rtl">
                 <button
@@ -516,19 +551,23 @@ export default function BookingModal() {
                   disabled={submitting}
                   className="flex-1 py-3.5 px-6 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl text-slate-650 font-bold transition-all disabled:opacity-50 cursor-pointer active:scale-95 text-xs text-center shadow-3xs"
                 >
-                  إلغاء وتغيير الخادم
+                  إلغاء وتغيير
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={submitting || !formData.date}
-                  className="flex-1 py-3.5 px-6 bg-linear-to-r from-slate-800 to-slate-900 hover:brightness-105 text-white font-black rounded-xl shadow-lg disabled:opacity-50 disabled:brightness-100 disabled:shadow-none transition-all flex items-center justify-center gap-2 text-xs cursor-pointer active:scale-95"
+                  className={`flex-1 py-3.5 px-6 ${
+                    isChurchLeader 
+                      ? (getChurchColor(user?.churchName || '').gradient || 'bg-linear-to-r from-emerald-600 to-teal-600 hover:brightness-105')
+                      : 'bg-linear-to-r from-slate-800 to-slate-900 hover:brightness-105'
+                  } text-white font-black rounded-xl shadow-lg disabled:opacity-50 disabled:brightness-100 disabled:shadow-none transition-all flex items-center justify-center gap-2 text-xs cursor-pointer active:scale-95`}
                 >
                   {submitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       جاري الإرسال...
                     </>
-                  ) : 'تأكيد الحجز للخادم ✓'}
+                  ) : (isChurchLeader ? 'تأكيد حجز المجموعة ✓' : 'تأكيد الحجز للخادم ✓')}
                 </button>
               </div>
             )}

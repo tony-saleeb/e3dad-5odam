@@ -13,14 +13,30 @@ const dayNames = ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خم�
 const dayNamesFull = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
 export default function WeeklySchedule() {
-  const { user, isAdmin, canSeePending, canCreateBooking } = useAuth();
-  const { bookings, loading: bookingsLoading, hasUserAlreadyBooked } = useBookings();
+  const { user, isAdmin, canSeePending, canCreateBooking, isChurchLeader } = useAuth();
+  const { bookings, loading: bookingsLoading, hasUserAlreadyBooked, getChurchBookedDays, getChurchGroupCount } = useBookings();
   const { settings, loading: settingsLoading } = useSettings();
   
   const { timePeriods, bookingRange } = settings;
   const { startMonth, endMonth, allowedDays } = bookingRange;
 
-  const userAlreadyBooked = !isAdmin && user?.email && hasUserAlreadyBooked(user.email);
+  const userAlreadyBooked = !isAdmin && !isChurchLeader && user?.email && hasUserAlreadyBooked(user.email);
+
+  // Day-locking logic for church leaders
+  const churchName = user?.churchName || '';
+  const churchBookedDays = isChurchLeader && churchName ? getChurchBookedDays(churchName) : [];
+  const churchGroupCount = isChurchLeader && churchName ? getChurchGroupCount(churchName) : 0;
+  const maxBookingDays = churchGroupCount > 3 ? 2 : 1;
+  const churchReachedMaxDays = isChurchLeader && churchBookedDays.length >= maxBookingDays;
+
+  // Check if a specific date is locked for the church leader
+  const isDayLockedForChurch = useCallback((dateStr: string): boolean => {
+    if (!isChurchLeader) return false;
+    // If this day already has a booking from this church, it's NOT locked (they can see it)
+    if (churchBookedDays.includes(dateStr)) return false;
+    // If max days reached, all other days are locked
+    return churchReachedMaxDays;
+  }, [isChurchLeader, churchBookedDays, churchReachedMaxDays]);
   
   const loading = bookingsLoading || settingsLoading;
   const {
@@ -82,8 +98,12 @@ export default function WeeklySchedule() {
     
     // CHURCH ADAPTATION: Disable booking on non-allowed days
     if (!allowedDays.includes(date.getDay())) return;
+
+    // Day-locking: prevent church leader from booking on locked days
+    const dateStr = format(date, "yyyy-MM-dd");
+    if (isDayLockedForChurch(dateStr)) return;
     
-    setSelectedDate(format(date, "yyyy-MM-dd"));
+    setSelectedDate(dateStr);
     if (startTime) setSelectedStartTime(startTime);
     if (endTime) setSelectedEndTime(endTime);
     openBookingModal();
@@ -259,6 +279,8 @@ export default function WeeklySchedule() {
           {timePeriods.map((period) => {
             const booking = mobileBookings.find(b => b.startTime === period.startTime);
             const isAllowed = allowedDays.includes(mobileSelectedDay.getDay());
+            const mDateStr = format(mobileSelectedDay, "yyyy-MM-dd");
+            const isDayLocked = isDayLockedForChurch(mDateStr);
             
             if (!isAllowed) return null;
 
@@ -286,7 +308,7 @@ export default function WeeklySchedule() {
                     )}
                   </div>
                   
-                  {!booking && user && canCreateBooking && isAllowed && !userAlreadyBooked && (
+                  {!booking && user && canCreateBooking && isAllowed && !userAlreadyBooked && !isDayLocked && (
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
@@ -299,6 +321,12 @@ export default function WeeklySchedule() {
                     >
                       + حجز
                     </button>
+                  )}
+                  {!booking && isDayLocked && (
+                    <div className="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                      <span className="text-[10px] font-bold">مغلق</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -364,11 +392,16 @@ export default function WeeklySchedule() {
             {visibleDays.map((day) => {
               const isAllowed = allowedDays.includes(day.getDay());
               const dayBookings = getBookingsForDay(day);
+              const dateStr = format(day, "yyyy-MM-dd");
+              const isDayLocked = isDayLockedForChurch(dateStr);
               return (
-                <div key={day.toISOString()} className={`flex gap-4 items-center p-2 rounded-2xl transition-all ${isToday(day) ? 'bg-emerald-500/4 border border-emerald-200/50 shadow-md shadow-emerald-500/2' : 'bg-transparent'} ${!isAllowed ? 'opacity-40' : ''}`}>
-                  <div className={`w-24 p-4 rounded-xl text-center shrink-0 flex flex-col justify-center transition-all ${isToday(day) ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 font-bold scale-105' : 'bg-white border border-slate-100 shadow-sm'}`}>
-                    <p className={`text-xs font-black ${isToday(day) ? 'text-emerald-100' : 'text-slate-400'}`}>{dayNames[day.getDay()]}</p>
-                    <p className="text-2xl font-black mt-0.5">{format(day, "d")}</p>
+                <div key={day.toISOString()} className={`flex gap-4 items-center p-2 rounded-2xl transition-all ${isToday(day) ? 'bg-emerald-500/4 border border-emerald-200/50 shadow-md shadow-emerald-500/2' : 'bg-transparent'} ${!isAllowed ? 'opacity-40' : ''} ${isDayLocked ? 'opacity-50' : ''}`}>
+                  <div className={`w-24 p-4 rounded-xl text-center shrink-0 flex flex-col justify-center transition-all ${isToday(day) ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 font-bold scale-105' : isDayLocked ? 'bg-amber-50 border border-amber-200 shadow-sm' : 'bg-white border border-slate-100 shadow-sm'}`}>
+                    <p className={`text-xs font-black ${isToday(day) ? 'text-emerald-100' : isDayLocked ? 'text-amber-500' : 'text-slate-400'}`}>{dayNames[day.getDay()]}</p>
+                    <p className={`text-2xl font-black mt-0.5 ${isDayLocked ? 'text-amber-600' : ''}`}>{format(day, "d")}</p>
+                    {isDayLocked && (
+                      <svg className="w-3.5 h-3.5 text-amber-500 mx-auto mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    )}
                   </div>
                   
                   {timePeriods.map((period) => {
@@ -383,7 +416,7 @@ export default function WeeklySchedule() {
                             <p className="font-black text-white text-base tracking-tight leading-snug pb-0.5">{booking.churchName}</p>
                             <p className="mt-1.5 text-xs text-white/90 font-medium pb-0.5"><strong className="text-white opacity-100 font-bold">المشروع:</strong> {booking.title}</p>
                           </div>
-                        ) : isAllowed && user && canCreateBooking && !userAlreadyBooked ? (
+                        ) : isAllowed && user && canCreateBooking && !userAlreadyBooked && !isDayLocked ? (
                           <button 
                             onClick={() => handleDayClick(day, period.startTime, period.endTime)}
                             className="absolute inset-0 bg-white hover:bg-slate-50 rounded-2xl border border-dashed border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all flex flex-col items-center justify-center gap-2 group shadow-sm"
@@ -391,6 +424,13 @@ export default function WeeklySchedule() {
                             <span className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-emerald-50 text-slate-400 group-hover:text-emerald-600 flex items-center justify-center text-xl font-light transition-all">+</span>
                             <span className="text-xs font-bold text-slate-400 group-hover:text-emerald-600 transition-all">حجز {period.label}</span>
                           </button>
+                        ) : isDayLocked && !booking ? (
+                          <div className="absolute inset-0 bg-amber-50/50 rounded-2xl border border-dashed border-amber-200 flex items-center justify-center">
+                            <div className="flex items-center gap-1.5 text-amber-500">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                              <span className="text-xs font-bold">مغلق</span>
+                            </div>
+                          </div>
                         ) : (
                           <div className="absolute inset-0 bg-slate-100/50 rounded-2xl border border-dashed border-slate-100"></div>
                         )}

@@ -3,7 +3,7 @@
 export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 
 // User roles: admin (مسؤول), servant (أمين الخدمة), user (مستخدم)
-export type UserRole = 'admin' | 'servant' | 'user';
+export type UserRole = 'admin' | 'servant' | 'user' | 'church_leader';
 
 export interface Service {
   id: string;

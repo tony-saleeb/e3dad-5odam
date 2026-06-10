@@ -9,7 +9,7 @@ interface ProfileMenuProps {
 }
 
 export default function ProfileMenu({ onClose, variant }: ProfileMenuProps) {
-  const { user, isAdmin, isServant, signOut } = useAuth();
+  const { user, isAdmin, isServant, isChurchLeader, signOut } = useAuth();
   const { openAdminDashboard, setIsEditingTeamDetails, openServantPortal } = useSchedulerStore();
 
   const isMobile = variant === 'mobile';
@@ -66,7 +66,7 @@ export default function ProfileMenu({ onClose, variant }: ProfileMenuProps) {
             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
             <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
               <span className="w-1 h-1 rounded-full bg-indigo-500" />
-              {isAdmin ? 'مسؤول' : isServant ? 'مقيم' : 'قائد فريق'}
+              {isAdmin ? 'مسؤول' : isServant ? 'مقيم' : isChurchLeader ? 'مسؤول كنيسة' : 'قائد فريق'}
             </span>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function ProfileMenu({ onClose, variant }: ProfileMenuProps) {
           </button>
         )}
 
-        {!isAdmin && user?.teamDetails && (
+        {!isAdmin && !isChurchLeader && user?.teamDetails && (
           <button
             onClick={handleOpenTeamEdit}
             className={`w-full flex items-center gap-3 ${itemPaddingClass} rounded-xl text-slate-700 hover:bg-slate-50 transition-all text-right cursor-pointer`}

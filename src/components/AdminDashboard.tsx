@@ -8,14 +8,15 @@ import { collection, getDocs, setDoc, deleteDoc, doc, onSnapshot, updateDoc, que
 import { getAuth } from 'firebase/auth';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
-import { getChurchColor } from '@/data/initialData';
+import { getChurchColor, churches } from '@/data/initialData';
 
 interface AllowedUser {
   id: string;
   email: string;
   name: string;
-  role: 'user' | 'admin' | 'servant';
+  role: 'user' | 'admin' | 'servant' | 'church_leader';
   created_at: string;
+  churchName?: string;
 }
 
 interface Evaluation {
@@ -61,9 +62,10 @@ export default function AdminDashboard() {
   // Add user form
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState<'user' | 'admin' | 'servant'>('user');
+  const [newRole, setNewRole] = useState<'user' | 'admin' | 'servant' | 'church_leader'>('user');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+  const [newChurchName, setNewChurchName] = useState('');
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   // Confirmation dialog state
@@ -138,12 +140,11 @@ export default function AdminDashboard() {
   const fetchAccessRequests = () => {
     setLoadingRequests(true);
     const q = query(collection(db, 'access_requests'), where('status', '==', 'pending'));
-    const unsub = onSnapshot(q, (snap) => {
+    return onSnapshot(q, (snap) => {
       const requests = snap.docs.map(d => ({ id: d.id, ...d.data() })) as AccessRequest[];
       setAccessRequests(requests);
       setLoadingRequests(false);
     }, () => setLoadingRequests(false));
-    return unsub;
   };
 
   const handleApproveRequest = async (req: AccessRequest) => {
@@ -192,19 +193,25 @@ export default function AdminDashboard() {
     if (!newEmail.trim()) { setAddError('البريد الإلكتروني مطلوب'); return; }
     if (!newEmail.includes('@')) { setAddError('بريد إلكتروني غير صالح'); return; }
     if (!newName.trim()) { setAddError('الاسم مطلوب'); return; }
+    if (newRole === 'church_leader' && !newChurchName) { setAddError('يجب اختيار الكنيسة لمسؤول الكنيسة'); return; }
 
     setAdding(true);
     try {
       const email = newEmail.trim().toLowerCase();
-      await setDoc(doc(db, 'allowed_users', email), {
+      const userData: Record<string, unknown> = {
         email,
         name: newName.trim(),
         role: newRole,
         created_at: new Date().toISOString(),
-      });
+      };
+      if (newRole === 'church_leader' && newChurchName) {
+        userData.churchName = newChurchName;
+      }
+      await setDoc(doc(db, 'allowed_users', email), userData);
       setNewEmail('');
       setNewName('');
       setNewRole('user');
+      setNewChurchName('');
       await fetchUsers();
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'حدث خطأ');
@@ -365,14 +372,29 @@ export default function AdminDashboard() {
                     />
                     <select
                       value={newRole}
-                      onChange={e => setNewRole(e.target.value as 'user' | 'admin' | 'servant')}
+                      onChange={e => setNewRole(e.target.value as 'user' | 'admin' | 'servant' | 'church_leader')}
                       className="px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-800/10 bg-white text-sm transition-all font-bold text-slate-700 cursor-pointer"
                     >
                       <option value="user">قائد فريق (User)</option>
+                      <option value="church_leader">مسؤول كنيسة</option>
                       <option value="servant">خادم مقيم / servant</option>
                       <option value="admin">مسؤول (Admin)</option>
                     </select>
                   </div>
+                  {newRole === 'church_leader' && (
+                    <div className="mt-2">
+                      <select
+                        value={newChurchName}
+                        onChange={e => setNewChurchName(e.target.value)}
+                        className="w-full px-4 py-3 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/10 bg-emerald-50/30 text-sm transition-all font-bold text-slate-700 cursor-pointer"
+                      >
+                        <option value="">اختر الكنيسة التابع لها...</option>
+                        {churches.map((church, idx) => (
+                          <option key={idx} value={church}>{church}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   {addError && <p className="text-red-500 text-xs font-bold">{addError}</p>}
                   <button
                     onClick={handleAddUser}
@@ -401,7 +423,9 @@ export default function AdminDashboard() {
                               ? 'bg-slate-700 text-white shadow-slate-700/10' 
                               : u.role === 'servant'
                                 ? 'bg-indigo-600 text-white shadow-indigo-600/10'
-                                : 'bg-slate-500 text-white shadow-slate-500/10'
+                                : u.role === 'church_leader'
+                                  ? 'bg-emerald-600 text-white shadow-emerald-600/10'
+                                  : 'bg-slate-500 text-white shadow-slate-500/10'
                           }`}>
                             {u.name[0]}
                           </div>
@@ -414,9 +438,11 @@ export default function AdminDashboard() {
                                   ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
                                   : u.role === 'servant'
                                     ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
-                                    : 'bg-slate-50 text-slate-650 border-slate-150/60'
+                                    : u.role === 'church_leader'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
+                                      : 'bg-slate-50 text-slate-650 border-slate-150/60'
                               }`}>
-                                {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : 'قائد فريق'}
+                                {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
                               </span>
                             </div>
                             <p className="text-slate-450 text-xs font-semibold leading-normal truncate" dir="ltr">{u.email}</p>
@@ -429,9 +455,11 @@ export default function AdminDashboard() {
                               ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
                               : u.role === 'servant'
                                 ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
-                                : 'bg-slate-50 text-slate-650 border-slate-150/60'
+                                : u.role === 'church_leader'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
+                                  : 'bg-slate-50 text-slate-650 border-slate-150/60'
                           }`}>
-                            {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : 'قائد فريق'}
+                            {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
                           </span>
                           <button
                             onClick={() => setConfirmDeleteUser(u.id)}

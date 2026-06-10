@@ -19,8 +19,9 @@ export interface UserData {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role: 'admin' | 'user' | 'servant';
+  role: 'admin' | 'user' | 'servant' | 'church_leader';
   teamDetails: TeamDetails | null;
+  churchName?: string; // For church_leader: which church they represent
 }
 
 interface AuthContextType {
@@ -28,6 +29,7 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isServant: boolean;
+  isChurchLeader: boolean;
   canCreateBooking: boolean;
   canSeePending: boolean;
   authError: string | null;
@@ -114,8 +116,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
             photoURL: firebaseUser.photoURL,
-            role: data.role as 'admin' | 'user' | 'servant',
+            role: data.role as 'admin' | 'user' | 'servant' | 'church_leader',
             teamDetails: data.teamDetails || null,
+            churchName: data.churchName || undefined,
           });
           setLoading(false);
         },
@@ -165,13 +168,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = user?.role === 'admin';
   const isServant = user?.role === 'servant';
+  const isChurchLeader = user?.role === 'church_leader';
 
   const value: AuthContextType = {
     user,
     loading,
     isAdmin,
     isServant,
-    canCreateBooking: user?.role === 'user' || user?.role === 'admin',
+    isChurchLeader,
+    canCreateBooking: user?.role === 'church_leader' || user?.role === 'admin',
     canSeePending: isAdmin,
     authError,
     lastFailedEmail,
