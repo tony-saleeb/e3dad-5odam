@@ -183,7 +183,6 @@ export default function AdminDashboard() {
     setProcessingRequestId(req.id);
     try {
       await deleteDoc(doc(db, 'access_requests', req.id));
-      await deleteDoc(doc(db, 'access_requests', req.id));
     } catch (err) {
       console.error('Error rejecting request:', err);
     } finally {
@@ -238,10 +237,15 @@ export default function AdminDashboard() {
           }
         }
 
-        if (email && name) {
+        // Validate email format to prevent injection of invalid Firestore doc IDs
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        // Sanitize name: strip any HTML tags
+        const sanitizedName = name.replace(/<[^>]*>/g, '').trim();
+
+        if (email && sanitizedName && emailRegex.test(email)) {
           usersToImport.push({
             email: email.toLowerCase(),
-            name
+            name: sanitizedName
           });
         }
       });
