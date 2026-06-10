@@ -17,7 +17,7 @@ interface EventModalProps {
 }
 
 export default function EventModal({ booking, isOpen, onClose }: EventModalProps) {
-  const { user, isAdmin, isServant } = useAuth();
+  const { user, isAdmin, isServant, isChurchLeader } = useAuth();
   const { updateBookingStatus, deleteBooking } = useBookings();
   const { settings } = useSettings();
   const { openServantPortal, setGradingBooking } = useSchedulerStore();
@@ -58,12 +58,12 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
 
   if (!isOpen || !booking) return null;
 
-  const isOwner = !!user?.email && !!booking.requesterEmail && user.email.toLowerCase() === booking.requesterEmail.toLowerCase();
+  const isChurchLeaderOfBooking = isChurchLeader && user?.churchName === booking.churchName;
   
   // Use SettingsContext which already has a real-time listener on this document
   const isCancellationAllowedForUser = settings.allowUserCancellation !== false;
 
-  const canModify = isAdmin || (isOwner && isCancellationAllowedForUser);
+  const canModify = isAdmin || (isChurchLeaderOfBooking && isCancellationAllowedForUser);
 
 
   const handleDelete = async () => {
@@ -350,7 +350,7 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 <span>
-                  {isOwner && !isCancellationAllowedForUser
+                  {isChurchLeaderOfBooking && !isCancellationAllowedForUser
                     ? 'تم إيقاف إلغاء الحجز من قبل المسؤول. يرجى التواصل معه لإجراء أي تعديل.'
                     : 'عرض فقط — لا يمكنك تعديل هذا الحجز'}
                 </span>

@@ -78,11 +78,8 @@ service cloud.firestore {
       // Create: Admins can book any slot, Church Leaders can only book for their own church
       allow create: if isAdmin() || (isChurchLeader() && request.resource.data.churchName == getUserData().churchName);
       
-      // Update/Delete: Only the original creator of the booking, their Church Leader, or an Admin can modify it
-      allow update, delete: if isAdmin() || (isSignedIn() && (
-                              request.auth.token.email.lower() == resource.data.requesterEmail.lower() ||
-                              isChurchLeaderFor(resource.data.churchName)
-                            ));
+      // Update/Delete: Only the Church Leader of the booking's church, or an Admin can modify it
+      allow update, delete: if isAdmin() || (isSignedIn() && isChurchLeaderFor(resource.data.churchName));
     }
 
     // ==========================================
