@@ -4,7 +4,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark-preview.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light-preview.png">
-  <img alt="5odam — Church Facility Scheduling & Evaluation Platform" src="docs/screenshots/light-preview.png" width="100%">
+  <img alt="5odam — Church Facility Scheduling & Evaluation Platform" src="docs/screenshots/light-preview.png" width="50%">
 </picture>
 
 <br/>
