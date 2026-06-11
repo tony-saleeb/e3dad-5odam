@@ -40,11 +40,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body className={`${cairo.variable} font-sans antialiased bg-slate-50`}>
+      <body className={`${cairo.variable} font-sans antialiased bg-slate-50`} suppressHydrationWarning>
         <SettingsProvider>
           <AuthProvider>
             <BookingsProvider>
