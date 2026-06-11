@@ -9,18 +9,18 @@
 
 <br/>
 
-# ⛪ إعداد خدام
+# ✝️ إعداد خدام
 
 **A premium, real-time Church Facility Scheduling & Project Evaluation platform**
 
 Built for the **Servants Preparation Family** (أسرة إعداد خدام كنائس وسط القاهرة)
 
-[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-e3dad--5odam.vercel.app-00C853?style=for-the-badge)](https://e3dad-5odam.vercel.app)
-[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
-[![Firebase](https://img.shields.io/badge/Firebase-10.12-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-000000?style=for-the-badge&logo=vercel)](https://vercel.com)
-[![License](https://img.shields.io/badge/License-MIT-4CAF50?style=for-the-badge)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-e3dad--5odam-10b981?style=flat-square&logo=google-chrome&logoColor=white&labelColor=24292e)](https://e3dad-5odam.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-16.0-000000?style=flat-square&logo=nextdotjs&logoColor=white&labelColor=24292e)](https://nextjs.org)
+[![Firebase](https://img.shields.io/badge/Firebase-10.12-FFCA28?style=flat-square&logo=firebase&logoColor=black&labelColor=24292e)](https://firebase.google.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=24292e)](https://www.typescriptlang.org)
+[![Vercel](https://img.shields.io/badge/Vercel-Deployed-000000?style=flat-square&logo=vercel&logoColor=white&labelColor=24292e)](https://vercel.com)
+[![License](https://img.shields.io/badge/License-MIT-4CAF50?style=flat-square&labelColor=24292e)](LICENSE)
 
 <br/>
 
