@@ -2,9 +2,9 @@
 
 <!-- GitHub Theme-Aware Hero Banner -->
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark-preview.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light-preview.png">
-  <img alt="5odam — Church Facility Scheduling & Evaluation Platform" src="docs/screenshots/light-preview.png" width="50%">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/hero-light.png">
+  <img alt="5odam — Church Facility Scheduling & Evaluation Platform" src="docs/screenshots/hero-light.png" width="50%">
 </picture>
 
 <br/>
