@@ -9,7 +9,7 @@
 
 <br/>
 
-# ⛪ إعداد خدام — 5odam
+# ⛪ إعداد خدام
 
 **A premium, real-time Church Facility Scheduling & Project Evaluation platform**
 
@@ -161,17 +161,17 @@ graph TB
 
 ### Tech Stack
 
-| Layer | Technology | Purpose |
-|:------|:-----------|:--------|
-| **Framework** | Next.js 16 + React 19 | SSR, App Router, Server Components |
-| **Language** | TypeScript 5.4 | Type-safe development |
-| **Database** | Cloud Firestore | Real-time NoSQL database |
-| **Auth** | Firebase Authentication | Google OAuth provider |
-| **Security** | Firebase App Check + reCAPTCHA v3 | Bot protection & request validation |
-| **Styling** | CSS Modules + Custom Properties | RTL-first responsive design |
-| **Deployment** | Vercel | Edge network, auto-deploy from Git |
-| **Testing** | Vitest + React Testing Library | Unit & integration testing |
-| **Data I/O** | ExcelJS | Bulk import/export of `.xlsx` files |
+| Layer          | Technology                        | Purpose                             |
+| :------------- | :-------------------------------- | :---------------------------------- |
+| **Framework**  | Next.js 16 + React 19             | SSR, App Router, Server Components  |
+| **Language**   | TypeScript 5.4                    | Type-safe development               |
+| **Database**   | Cloud Firestore                   | Real-time NoSQL database            |
+| **Auth**       | Firebase Authentication           | Google OAuth provider               |
+| **Security**   | Firebase App Check + reCAPTCHA v3 | Bot protection & request validation |
+| **Styling**    | CSS Modules + Custom Properties   | RTL-first responsive design         |
+| **Deployment** | Vercel                            | Edge network, auto-deploy from Git  |
+| **Testing**    | Vitest + React Testing Library    | Unit & integration testing          |
+| **Data I/O**   | ExcelJS                           | Bulk import/export of `.xlsx` files |
 
 <br/>
 
