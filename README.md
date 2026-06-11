@@ -12,15 +12,15 @@ A premium, highly secure, real-time Church Facility Scheduling and Project Evalu
 
 ## 📸 Interface Showcase
 
-GitHub will automatically display the corresponding preview depending on your theme:
+### 🗓️ Interactive Calendar & Project Scheduler
+The main interface displays weekly scheduling cells styled dynamically with church brand colors, time slot allocations, and status indicators:
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark-preview.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light-preview.png">
-  <img alt="App Preview Dashboard" src="docs/screenshots/light-preview.png" width="100%">
-</picture>
+![Calendar Dashboard View](docs/screenshots/dashboard.png)
 
-*Note: Create a `docs/screenshots/` folder in your repository and save your screenshots as `light-preview.png` and `dark-preview.png` to display them here.*
+### 🔑 Secure Sign-in Portal
+The premium login screen features custom radial backgrounds, responsive glassmorphic cards, and automated reCAPTCHA v3 protection:
+
+![Sign-in Interface View](docs/screenshots/landing-page.png)
 
 ---
 
