@@ -10,6 +10,7 @@ import {
   persistentMultipleTabManager,
   getFirestore,
 } from 'firebase/firestore';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
@@ -42,5 +43,43 @@ try {
   db = getFirestore(app);
 }
 
+// Firebase App Check — protects your backend from abuse
+// Uses reCAPTCHA v3 (invisible, zero user friction)
+if (typeof window !== 'undefined') {
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  console.log('[App Check Diagnostic] Site Key value:', recaptchaSiteKey);
+
+  if (recaptchaSiteKey) {
+    // Production: use reCAPTCHA v3 provider
+    try {
+      console.log('[App Check Diagnostic] Initializing with reCAPTCHA v3...');
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+      console.log('[App Check Diagnostic] App Check initialized successfully!');
+    } catch (err) {
+      console.warn('[App Check Diagnostic] App Check initialization warning/error:', err);
+    }
+  } else if (process.env.NODE_ENV === 'development') {
+    // Development: enable debug mode so localhost is not blocked
+    // @ts-expect-error — Firebase debug token global
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    try {
+      console.log('[App Check Diagnostic] Initializing in Development debug mode...');
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider('__debug__'),
+        isTokenAutoRefreshEnabled: true,
+      });
+      console.log('[App Check Diagnostic] App Check debug initialized successfully!');
+    } catch (err) {
+      console.warn('[App Check Diagnostic] App Check debug initialization warning/error:', err);
+    }
+  } else {
+    console.warn('[App Check Diagnostic] No Site Key found and not in development mode. Skipping App Check.');
+  }
+}
+
 export { db };
 export default app;
+

@@ -31,6 +31,13 @@ vi.mock('@/lib/firebase', () => ({
     signInWithPopup: vi.fn(),
     signOut: vi.fn(),
   },
+  googleProvider: {},
+}));
+
+// Mock Firebase App Check
+vi.mock('firebase/app-check', () => ({
+  initializeAppCheck: vi.fn(),
+  ReCaptchaV3Provider: vi.fn(),
 }));
 
 // Mock window.matchMedia
@@ -47,3 +54,4 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
+

@@ -76,24 +76,17 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Real-time listener — Firestore onSnapshot replaces polling + Supabase channels
   useEffect(() => {
     if (!user) {
-      let activeClear = true;
-      Promise.resolve().then(() => {
-        if (activeClear) {
-          setBookings([]);
-          setAllBookingsIncludingCancelled([]);
-          setLoading(false);
-          setError(null);
-        }
-      });
-      return () => {
-        activeClear = false;
-      };
+      const timer = setTimeout(() => {
+        setBookings([]);
+        setAllBookingsIncludingCancelled([]);
+        setLoading(false);
+        setError(null);
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
+    setLoading(true);
     let active = true;
-    Promise.resolve().then(() => {
-      if (active) setLoading(true);
-    });
 
     const year = new Date().getFullYear();
     const startDateStr = `${year}-${String(startMonth + 1).padStart(2, '0')}-01`;

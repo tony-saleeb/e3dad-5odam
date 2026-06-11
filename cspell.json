@@ -2,6 +2,7 @@
   "version": "0.2",
   "language": "en,ar",
   "words": [
+    "APPCHECK",
     "appspot",
     "argb",
     "creativ",
@@ -20,6 +21,7 @@
     "officedocument",
     "openxmlformats",
     "postcss",
+    "RECAPTCHA",
     "rgba",
     "Saleeb",
     "segoe",
