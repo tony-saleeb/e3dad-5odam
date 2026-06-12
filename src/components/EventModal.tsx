@@ -373,7 +373,7 @@ function DetailCard({ icon, label, value, subValue }: { icon: React.ReactNode; l
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-normal">{label}</p>
         <p className="text-xs font-black text-slate-800 pb-0.5 truncate mt-0.5 leading-normal">{value}</p>
         {subValue && (
-          <p className="text-[9px] text-slate-450 font-bold leading-normal truncate mt-0.5 font-semibold" dir="ltr">{subValue}</p>
+          <p className="text-[9px] text-slate-450 font-bold leading-normal truncate mt-0.5" dir="ltr">{subValue}</p>
         )}
       </div>
     </div>
