@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, setDoc, deleteDoc, doc, onSnapshot, updateDoc, query, where, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, setDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
@@ -18,6 +18,13 @@ interface AllowedUser {
   role: 'user' | 'admin' | 'servant' | 'church_leader';
   created_at: string;
   churchName?: string;
+  teamDetails?: {
+    churchName?: string;
+    teamName?: string;
+    title?: string;
+    ageGroup?: string;
+    teamMembers?: { name: string; id: string }[];
+  };
 }
 
 interface Evaluation {
@@ -31,15 +38,7 @@ interface Evaluation {
   createdAt: string;
 }
 
-interface AccessRequest {
-  id: string;
-  email: string;
-  name: string;
-  churchName: string;
-  teamName: string;
-  status: string;
-  createdAt: unknown;
-}
+
 
 export default function AdminDashboard() {
   const { isAdmin } = useAuth();
@@ -53,9 +52,12 @@ export default function AdminDashboard() {
 
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'archive' | 'requests' | 'leaderboard' | 'analytics'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'archive' | 'leaders' | 'leaderboard' | 'analytics'>('users');
   const { toast } = useToast();
   const [importing, setImporting] = useState(false);
+  const [importRole, setImportRole] = useState<'user' | 'admin' | 'servant' | 'church_leader'>('user');
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'user' | 'admin' | 'servant' | 'church_leader'>('all');
+  const [expandedLeaderId, setExpandedLeaderId] = useState<string | null>(null);
 
   // Restoration and archive state
   const [restoringBookingId, setRestoringBookingId] = useState<string | null>(null);
@@ -75,10 +77,7 @@ export default function AdminDashboard() {
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmRestoreBooking, setConfirmRestoreBooking] = useState<string | null>(null);
 
-  // Access requests state
-  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
-  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+
 
   // Leaderboard state
   const [leaderboardSort, setLeaderboardSort] = useState<string>('total');
@@ -135,60 +134,10 @@ export default function AdminDashboard() {
     if (isAdminDashboardOpen && isAdmin) {
       fetchUsers();
       fetchEvaluations();
-      fetchAccessRequests();
     }
   }, [isAdminDashboardOpen, isAdmin]);
 
-  // Real-time listener for access requests
-  const fetchAccessRequests = () => {
-    setLoadingRequests(true);
-    const q = query(collection(db, 'access_requests'), where('status', '==', 'pending'));
-    return onSnapshot(q, (snap) => {
-      const requests = snap.docs.map(d => ({ id: d.id, ...d.data() })) as AccessRequest[];
-      setAccessRequests(requests);
-      setLoadingRequests(false);
-    }, () => setLoadingRequests(false));
-  };
 
-  const handleApproveRequest = async (req: AccessRequest) => {
-    setProcessingRequestId(req.id);
-    try {
-      // Provision user in allowed_users
-      await setDoc(doc(db, 'allowed_users', req.email.toLowerCase()), {
-        email: req.email.toLowerCase(),
-        name: req.name,
-        role: 'user' as const,
-        created_at: new Date().toISOString(),
-        teamDetails: {
-          churchName: req.churchName,
-          teamName: req.teamName,
-          title: '',
-          ageGroup: '',
-          teamMembers: [],
-        },
-      });
-      // Update request status
-      await updateDoc(doc(db, 'access_requests', req.id), { status: 'approved' });
-      await fetchUsers();
-      
-      await fetchUsers();
-    } catch (err) {
-      console.error('Error approving request:', err);
-    } finally {
-      setProcessingRequestId(null);
-    }
-  };
-
-  const handleRejectRequest = async (req: AccessRequest) => {
-    setProcessingRequestId(req.id);
-    try {
-      await deleteDoc(doc(db, 'access_requests', req.id));
-    } catch (err) {
-      console.error('Error rejecting request:', err);
-    } finally {
-      setProcessingRequestId(null);
-    }
-  };
 
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -266,7 +215,7 @@ export default function AdminDashboard() {
           batch.set(docRef, {
             email: user.email,
             name: user.name,
-            role: 'user', // Direct as team leader
+            role: importRole,
             created_at: new Date().toISOString()
           });
         });
@@ -274,7 +223,8 @@ export default function AdminDashboard() {
         count += chunk.length;
       }
 
-      toast.success(`تم استيراد عدد ${count} من قادة الفرق بنجاح!`);
+      const roleLabels: Record<string, string> = { user: 'قادة فرق', admin: 'مسؤولين', servant: 'خدام مقيمين', church_leader: 'مسؤولي كنائس' };
+      toast.success(`تم استيراد عدد ${count} من ${roleLabels[importRole] || 'المستخدمين'} بنجاح!`);
       await fetchUsers();
     } catch (err) {
       console.error('[AdminDashboard] Excel import error:', err);
@@ -418,7 +368,7 @@ export default function AdminDashboard() {
                   { id: 'users', label: 'المستخدمون' },
                   { id: 'bookings', label: 'سجل المشاريع' },
                   { id: 'evaluations', label: 'نتائج التقييم' },
-                  { id: 'requests', label: `طلبات الانضمام${accessRequests.length > 0 ? ` (${accessRequests.length})` : ''}` },
+                  { id: 'leaders', label: 'بيانات القادة' },
                   { id: 'leaderboard', label: 'لوحة الصدارة' },
                   { id: 'analytics', label: 'إحصائيات الأداء' },
                   { id: 'archive', label: 'الأرشيف والملغى' },
@@ -504,36 +454,82 @@ export default function AdminDashboard() {
 
                 {/* Bulk Excel Import Section */}
                 <div className="border-t border-slate-100 my-4 pt-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
-                    <div className="text-right">
-                      <h4 className="text-sm font-bold text-slate-800 mb-1">الاستيراد الجماعي من ملف Excel</h4>
-                      <p className="text-xs text-slate-500">
-                        يرجى رفع ملف Excel يحتوي على: العمود الأول (البريد الإلكتروني)، العمود الثاني (الاسم الكامل لقادة الفرق). وسيتم استيرادهم مباشرة كقادة فرق مصرح لهم.
-                      </p>
+                  <div className="flex flex-col gap-4 bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="text-right flex-1">
+                        <h4 className="text-sm font-bold text-slate-800 mb-1">الاستيراد الجماعي من ملف Excel</h4>
+                        <p className="text-xs text-slate-500">
+                          يرجى رفع ملف Excel يحتوي على: العمود الأول (البريد الإلكتروني)، العمود الثاني (الاسم الكامل). وسيتم استيرادهم بالدور المحدد أدناه.
+                        </p>
+                      </div>
+                      <label className={`relative flex items-center justify-center gap-2 px-5 py-3 border-2 border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-xl cursor-pointer text-slate-700 text-sm font-bold transition-all shrink-0 ${importing ? 'pointer-events-none opacity-55' : ''}`}>
+                        {importing ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                            <span>جاري الاستيراد...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                            <span>رفع واستيراد ملف Excel</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept=".xlsx, .xls"
+                          onChange={handleExcelImport}
+                          className="hidden"
+                          disabled={importing}
+                        />
+                      </label>
                     </div>
-                    <label className={`relative flex items-center justify-center gap-2 px-5 py-3 border-2 border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-xl cursor-pointer text-slate-700 text-sm font-bold transition-all shrink-0 ${importing ? 'pointer-events-none opacity-55' : ''}`}>
-                      {importing ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                          <span>جاري الاستيراد...</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                          </svg>
-                          <span>رفع واستيراد ملف Excel</span>
-                        </>
-                      )}
-                      <input
-                        type="file"
-                        accept=".xlsx, .xls"
-                        onChange={handleExcelImport}
-                        className="hidden"
-                        disabled={importing}
-                      />
-                    </label>
+                    {/* Role selector for import */}
+                    <div className="flex items-center gap-3 bg-white border border-slate-200/60 p-3 rounded-xl">
+                      <span className="text-xs font-bold text-slate-500 shrink-0">استيراد كـ:</span>
+                      <select
+                        value={importRole}
+                        onChange={e => setImportRole(e.target.value as 'user' | 'admin' | 'servant' | 'church_leader')}
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-800/10 bg-white text-sm font-bold text-slate-700 cursor-pointer transition-all"
+                      >
+                        <option value="user">قائد فريق (User)</option>
+                        <option value="church_leader">مسؤول كنيسة</option>
+                        <option value="servant">خادم مقيم / Servant</option>
+                        <option value="admin">مسؤول (Admin)</option>
+                      </select>
+                    </div>
                   </div>
+                </div>
+
+                {/* Role Filter Sub-Tabs */}
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+                  {([
+                    { id: 'all' as const, label: 'الكل', count: allowedUsers.length },
+                    { id: 'user' as const, label: 'قادة الفرق', count: allowedUsers.filter(u => u.role === 'user').length },
+                    { id: 'church_leader' as const, label: 'مسؤولو الكنائس', count: allowedUsers.filter(u => u.role === 'church_leader').length },
+                    { id: 'servant' as const, label: 'الخدام المقيمون', count: allowedUsers.filter(u => u.role === 'servant').length },
+                    { id: 'admin' as const, label: 'المسؤولون', count: allowedUsers.filter(u => u.role === 'admin').length },
+                  ]).map(filter => (
+                    <button
+                      key={filter.id}
+                      onClick={() => setUserRoleFilter(filter.id)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                        userRoleFilter === filter.id
+                          ? 'bg-slate-800 text-white shadow-md shadow-slate-800/15'
+                          : 'bg-white border border-slate-200/60 text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      {filter.label}
+                      <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[10px] font-black ${
+                        userRoleFilter === filter.id
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {filter.count}
+                      </span>
+                    </button>
+                  ))}
                 </div>
 
                 {loading ? (
@@ -546,7 +542,7 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-2.5 max-h-[35vh] overflow-y-auto pr-1 scrollbar-hide">
-                    {allowedUsers.map(u => (
+                    {allowedUsers.filter(u => userRoleFilter === 'all' || u.role === userRoleFilter).map(u => (
                       <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 sm:px-4 sm:py-3 rounded-2xl transition-all duration-200 hover:shadow-2xs gap-3.5 sm:gap-3">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm shrink-0 ${
@@ -1442,56 +1438,149 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* REQUESTS TAB */}
-            {activeTab === 'requests' && (
+            {/* LEADERS DATA TAB */}
+            {activeTab === 'leaders' && (
               <div className="space-y-4 animate-fade-in">
                 <div className="bg-slate-50/50 p-5 rounded-3xl border border-slate-100">
                   <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
                     <span className="w-1.5 h-4 rounded-full bg-slate-700 inline-block" />
-                    طلبات الانضمام المعلقة
+                    بيانات القادة المسجلة
                   </h3>
                   <p className="text-xs text-slate-400 font-bold mt-1">
-                    مراجعة واعتماد قادة الفرق الجدد
+                    قادة الفرق الذين قاموا بتسجيل بيانات فرقهم. اضغط على أي بطاقة لعرض التفاصيل الكاملة.
                   </p>
                 </div>
-                {loadingRequests ? (
-                  <div className="text-center py-8"><div className="w-8 h-8 border-4 border-slate-800 border-t-transparent rounded-full animate-spin mx-auto" /></div>
-                ) : accessRequests.length === 0 ? (
-                  <div className="text-center py-16 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
-                    لا توجد طلبات معلقة حالياً.
-                  </div>
-                ) : (
-                  <div className="space-y-3.5 max-h-[45vh] overflow-y-auto pr-1 scrollbar-hide">
-                    {accessRequests.map(req => (
-                      <div key={req.id} className="flex flex-col md:flex-row md:items-center justify-between bg-white border border-slate-100 p-5 rounded-3xl gap-4 hover:shadow-2xs transition-all">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{req.name}</p>
-                          <p className="text-slate-450 text-xs font-semibold leading-normal truncate" dir="ltr">{req.email}</p>
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-                            <span className="px-2 py-1 bg-slate-50 rounded-lg border border-slate-100">الكنيسة: <strong className="text-slate-700">{req.churchName}</strong></span>
-                            <span className="px-2 py-1 bg-slate-50 rounded-lg border border-slate-100">الخدمة: <strong className="text-slate-700">{req.teamName}</strong></span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => handleApproveRequest(req)}
-                            disabled={processingRequestId === req.id}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs transition-all cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95 disabled:opacity-50"
-                          >
-                            {processingRequestId === req.id ? 'جاري...' : 'قبول'}
-                          </button>
-                          <button
-                            onClick={() => handleRejectRequest(req)}
-                            disabled={processingRequestId === req.id}
-                            className="px-4 py-2 bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 font-black rounded-xl text-xs transition-all cursor-pointer active:scale-95 disabled:opacity-50"
-                          >
-                            رفض
-                          </button>
-                        </div>
+
+                {(() => {
+                  // Filter users who have role 'user' and have teamDetails filled
+                  const leadersWithData = allowedUsers.filter(
+                    u => u.role === 'user' && u.teamDetails
+                  );
+
+                  if (loading) {
+                    return (
+                      <div className="text-center py-8">
+                        <div className="w-8 h-8 border-4 border-slate-800 border-t-transparent rounded-full animate-spin mx-auto" />
                       </div>
-                    ))}
-                  </div>
-                )}
+                    );
+                  }
+
+                  if (leadersWithData.length === 0) {
+                    return (
+                      <div className="text-center py-16 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
+                        لا يوجد قادة قاموا بتسجيل بيانات فرقهم بعد.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide">
+                      {leadersWithData.map(leader => {
+                        const td = leader.teamDetails;
+                        if (!td) return null;
+                        const isExpanded = expandedLeaderId === leader.id;
+                        const memberCount = td.teamMembers?.length || 0;
+                        const churchColor = getChurchColor(td.churchName || '');
+
+                        return (
+                          <div
+                            key={leader.id}
+                            className="bg-white border border-slate-150/70 rounded-2xl overflow-hidden hover:shadow-xs transition-all duration-200"
+                          >
+                            {/* Leader Card Header */}
+                            <button
+                              onClick={() => setExpandedLeaderId(isExpanded ? null : leader.id)}
+                              className="w-full p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer text-right"
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <span className={`w-1.5 h-11 rounded-full shrink-0`} style={{ background: `linear-gradient(to bottom, ${churchColor.hex}, ${churchColor.hex}cc)` }} />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-black text-slate-800 text-sm leading-normal truncate">{leader.name}</p>
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200/50 leading-none shrink-0">
+                                      مسجّل
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-450 text-xs font-semibold leading-normal truncate mt-0.5" dir="ltr">{leader.email}</p>
+                                  <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] font-bold text-slate-500">
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: churchColor.hex }} />
+                                      {td.churchName || 'غير محدد'}
+                                    </span>
+                                    <span className="text-slate-300">•</span>
+                                    <span>{td.teamName || 'بدون فريق'}</span>
+                                    <span className="text-slate-300">•</span>
+                                    <span>{memberCount} أعضاء</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 shrink-0 border-t border-slate-100/50 pt-2.5 sm:pt-0 sm:border-0">
+                                <div className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-center shadow-3xs">
+                                  <p className="text-[9px] font-bold text-slate-450 uppercase leading-none">الأعضاء</p>
+                                  <p className="text-xs font-black text-slate-800 mt-0.5 leading-none">{memberCount}</p>
+                                </div>
+                                <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                            </button>
+
+                            {/* Expanded Details */}
+                            {isExpanded && (
+                              <div className="bg-slate-50/40 border-t border-slate-100 p-4 space-y-4 animate-fade-in">
+                                {/* Project Info */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                  <div className="bg-white p-3 border border-slate-100 rounded-xl text-center">
+                                    <p className="text-[10px] font-bold text-slate-450">الكنيسة</p>
+                                    <p className="text-xs font-black text-slate-800 mt-1 truncate" title={td.churchName}>{td.churchName || '—'}</p>
+                                  </div>
+                                  <div className="bg-white p-3 border border-slate-100 rounded-xl text-center">
+                                    <p className="text-[10px] font-bold text-slate-450">اسم الفريق</p>
+                                    <p className="text-xs font-black text-slate-800 mt-1 truncate" title={td.teamName}>{td.teamName || '—'}</p>
+                                  </div>
+                                  <div className="bg-white p-3 border border-slate-100 rounded-xl text-center">
+                                    <p className="text-[10px] font-bold text-slate-450">عنوان المشروع</p>
+                                    <p className="text-xs font-black text-slate-800 mt-1 truncate" title={td.title}>{td.title || '—'}</p>
+                                  </div>
+                                  <div className="bg-white p-3 border border-slate-100 rounded-xl text-center">
+                                    <p className="text-[10px] font-bold text-slate-450">المرحلة العمرية</p>
+                                    <p className="text-xs font-black text-slate-800 mt-1 truncate" title={td.ageGroup}>{td.ageGroup || '—'}</p>
+                                  </div>
+                                </div>
+
+                                {/* Team Members List */}
+                                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-3xs">
+                                  <h4 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-3.5 rounded-full bg-slate-700 inline-block" />
+                                    أعضاء الفريق ({memberCount})
+                                  </h4>
+                                  {(!td.teamMembers || td.teamMembers.length === 0) ? (
+                                    <p className="text-center text-slate-400 text-xs py-4">لم يتم إضافة أعضاء بعد</p>
+                                  ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      {td.teamMembers.map((member, idx) => (
+                                        <div key={idx} className="flex items-center gap-2.5 p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                                          <span className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-black shrink-0">
+                                            {idx + 1}
+                                          </span>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-bold text-slate-800 truncate">{member.name}</p>
+                                            <p className="text-[10px] text-slate-400 font-semibold truncate">كود: {member.id}</p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
