@@ -1451,6 +1451,71 @@ export default function AdminDashboard() {
                   </p>
                 </div>
 
+                {/* Summary Stats */}
+                {(() => {
+                  const leadersWithDetails = allowedUsers.filter(u => u.role === 'user' && u.teamDetails);
+                  const leadersCount = leadersWithDetails.length;
+                  const churchLeaderCounts = leadersWithDetails.reduce((acc, u) => {
+                    const church = u.teamDetails?.churchName || 'غير محدد';
+                    acc[church] = (acc[church] || 0) + 1;
+                    return acc;
+                  }, {} as Record<string, number>);
+                  const sortedChurches = Object.entries(churchLeaderCounts).sort((a, b) => b[1] - a[1]);
+                  const maxChurchCount = Math.max(...sortedChurches.map(([, c]) => c), 1);
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Total Leaders Card */}
+                      <div className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">إجمالي القادة المسجلين</p>
+                          <p className="text-xl font-black text-slate-800 mt-1 leading-none">{leadersCount}</p>
+                        </div>
+                      </div>
+
+                      {/* Churches Breakdown Card */}
+                      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">الكنائس المسجلة</p>
+                            <p className="text-xl font-black text-slate-800 mt-1 leading-none">{sortedChurches.length} <span className="text-xs font-bold text-slate-400">كنيسة</span></p>
+                          </div>
+                        </div>
+                        {sortedChurches.length > 0 && (
+                          <div className="space-y-2 max-h-32 overflow-y-auto scrollbar-hide pr-0.5">
+                            {sortedChurches.map(([church, count]) => {
+                              const churchColor = getChurchColor(church);
+                              return (
+                                <div key={church} className="flex items-center gap-2.5">
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: churchColor.hex }} />
+                                  <span className="text-[11px] font-bold text-slate-600 truncate flex-1 min-w-0">{church}</span>
+                                  <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0">
+                                    <div
+                                      className="h-full rounded-full transition-all duration-700"
+                                      style={{ width: `${(count / maxChurchCount) * 100}%`, backgroundColor: churchColor.hex }}
+                                    />
+                                  </div>
+                                  <span className="text-[11px] font-black text-slate-700 w-5 text-left shrink-0">{count}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {(() => {
                   // Filter users who have role 'user' and have teamDetails filled
                   const leadersWithData = allowedUsers.filter(
