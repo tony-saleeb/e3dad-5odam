@@ -372,32 +372,105 @@ export default function AdminDashboard() {
           </div>
 
           {/* Tabs capsule styled control */}
-          <div className="px-6 py-4 bg-white border-b border-slate-50 shrink-0 flex items-center justify-center">
-            <div className="bg-slate-100/85 p-1 rounded-2xl flex gap-1 w-full max-w-xl overflow-x-auto scrollbar-hide flex-nowrap sm:flex-wrap">
-              {(
-                [
-                  { id: 'users', label: 'المستخدمون' },
-                  { id: 'bookings', label: 'سجل المشاريع' },
-                  { id: 'evaluations', label: 'نتائج التقييم' },
-                  { id: 'leaders', label: 'بيانات القادة' },
-                  { id: 'leaderboard', label: 'لوحة الصدارة' },
-                  { id: 'analytics', label: 'إحصائيات الأداء' },
-                  { id: 'archive', label: 'الأرشيف والملغى' },
-                  { id: 'settings', label: 'إعدادات النظام' }
-                ] as const
-              ).map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-2.5 text-xs font-black rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shrink-0 px-4 sm:px-0 sm:flex-1 ${
-                    activeTab === tab.id 
-                      ? 'bg-white text-slate-800 shadow-sm border border-slate-200/40' 
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+          <div className="px-4 sm:px-6 py-3.5 bg-slate-50/80 border-b border-slate-150/70 shrink-0">
+            <div className="overflow-x-auto scrollbar-hide">
+              <div className="inline-flex p-1.5 bg-slate-200/60 rounded-2xl gap-1.5 w-full sm:w-auto min-w-full sm:min-w-0 justify-start sm:justify-center">
+                {(
+                  [
+                    { 
+                      id: 'users', 
+                      label: 'المستخدمون',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'bookings', 
+                      label: 'سجل المشاريع',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'evaluations', 
+                      label: 'نتائج التقييم',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'leaders', 
+                      label: 'بيانات القادة',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 012-2h2a2 2 0 012 2v1m-6 0h6" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'leaderboard', 
+                      label: 'لوحة الصدارة',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'analytics', 
+                      label: 'إحصائيات الأداء',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'archive', 
+                      label: 'الأرشيف والملغى',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'settings', 
+                      label: 'إعدادات النظام',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )
+                    }
+                  ] as const
+                ).map(tab => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-3.5 py-2.5 text-xs font-black rounded-xl transition-all duration-200 cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                        isActive 
+                          ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20 scale-[1.02]' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                      }`}
+                    >
+                      <span className={`transition-transform duration-200 ${isActive ? 'scale-110 text-emerald-400' : 'text-slate-400'}`}>
+                        {tab.icon}
+                      </span>
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
