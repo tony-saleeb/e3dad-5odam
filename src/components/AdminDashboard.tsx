@@ -558,24 +558,27 @@ export default function AdminDashboard() {
                       const churchColor = getChurchColor(userChurch || '');
 
                       return (
-                        <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 sm:px-4 sm:py-3 rounded-2xl transition-all duration-200 hover:shadow-2xs gap-3.5 sm:gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm shrink-0 ${
+                        <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white hover:bg-slate-50/80 border border-slate-100 p-4 sm:px-4 sm:py-3.5 rounded-2xl transition-all duration-200 hover:shadow-sm hover:border-slate-200/80 gap-3.5 sm:gap-3">
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            {/* User Avatar */}
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black shadow-xs shrink-0 ${
                               u.role === 'admin' 
-                                ? 'bg-slate-700 text-white shadow-slate-700/10' 
+                                ? 'bg-slate-800 text-white shadow-slate-800/10' 
                                 : u.role === 'servant'
                                   ? 'bg-indigo-600 text-white shadow-indigo-600/10'
                                   : u.role === 'church_leader'
                                     ? 'bg-emerald-600 text-white shadow-emerald-600/10'
-                                    : 'bg-slate-500 text-white shadow-slate-500/10'
+                                    : 'bg-slate-600 text-white shadow-slate-600/10'
                             }`}>
                               {u.name[0]}
                             </div>
-                            <div className="min-w-0 flex-1">
+
+                            {/* User Details */}
+                            <div className="min-w-0 flex-1 space-y-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{u.name}</p>
+                                <p className="font-black text-slate-800 text-sm leading-tight truncate">{u.name}</p>
                                 {/* Mobile-only Role Badge */}
-                                <span className={`inline-block sm:hidden px-2 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
+                                <span className={`inline-block sm:hidden px-2.5 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
                                   u.role === 'admin' 
                                     ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
                                     : u.role === 'servant'
@@ -587,41 +590,33 @@ export default function AdminDashboard() {
                                   {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
                                 </span>
                               </div>
-                              <p className="text-slate-450 text-xs font-semibold leading-normal truncate" dir="ltr">{u.email}</p>
+                              <p className="text-slate-450 text-xs font-semibold leading-none truncate" dir="ltr">{u.email}</p>
 
-                              {/* Church Indicator & Selector */}
-                              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                                <span className="text-[11px] font-bold text-slate-400">الكنيسة:</span>
-                                <div className="relative inline-flex items-center">
-                                  {userChurch && (
-                                    <span
-                                      className="w-2 h-2 rounded-full absolute right-2.5 pointer-events-none z-10"
-                                      style={{ backgroundColor: churchColor.hex }}
-                                    />
-                                  )}
-                                  <select
-                                    value={userChurch || ''}
-                                    onChange={(e) => handleUpdateChurch(u.id, e.target.value)}
-                                    className={`py-1 rounded-xl text-[11px] font-black bg-white border text-slate-700 focus:outline-none focus:border-slate-800 cursor-pointer shadow-3xs transition-all hover:border-slate-300 ${
-                                      userChurch
-                                        ? 'pr-6 pl-3 border-slate-200'
-                                        : 'px-3 border-amber-300 bg-amber-50/50 text-amber-800'
-                                    }`}
-                                  >
-                                    <option value="">-- اختر الكنيسة --</option>
-                                    {churches.map((c) => (
-                                      <option key={c} value={c}>
-                                        {c}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                              {/* Church Badge - Read Only */}
+                              <div className="pt-0.5 flex items-center gap-2 flex-wrap">
+                                {userChurch ? (
+                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-slate-200/60 shadow-3xs ${churchColor.badge}`}>
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: churchColor.hex }} />
+                                    <span>⛪ {userChurch}</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-400 border border-slate-200/50">
+                                    غير محدد الكنيسة
+                                  </span>
+                                )}
+
+                                {u.teamDetails?.teamName && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-150/50">
+                                    👥 {u.teamDetails.teamName}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-slate-100/50 pt-2.5 sm:pt-0 sm:border-0">
+
+                          <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-slate-100/60 pt-2.5 sm:pt-0 sm:border-0 shrink-0">
                             {/* Desktop-only Role Badge */}
-                            <span className={`hidden sm:inline-block px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 ${
+                            <span className={`hidden sm:inline-block px-3 py-1 rounded-full text-[10px] font-black border shrink-0 ${
                               u.role === 'admin' 
                                 ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
                                 : u.role === 'servant'
@@ -632,10 +627,11 @@ export default function AdminDashboard() {
                             }`}>
                               {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
                             </span>
+
                             <button
                               onClick={() => setConfirmDeleteUser(u.id)}
                               disabled={removingId === u.id}
-                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center active:scale-95 shadow-2xs"
+                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center active:scale-95 shadow-3xs"
                             >
                               {removingId === u.id ? 'جاري الحذف...' : 'حذف'}
                             </button>
