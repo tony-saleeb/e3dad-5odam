@@ -53,7 +53,9 @@ export default function AdminDashboard() {
 
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'archive' | 'leaders' | 'leaderboard' | 'analytics' | 'db_records' | 'church_leaders'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'leaders' | 'leaderboard' | 'analytics' | 'db_records' | 'church_leaders'>('users');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userActionMode, setUserActionMode] = useState<'none' | 'add' | 'import'>('none');
   const { toast } = useToast();
   const [importing, setImporting] = useState(false);
   const [importRole, setImportRole] = useState<'user' | 'admin' | 'servant' | 'church_leader'>('user');
@@ -450,15 +452,7 @@ export default function AdminDashboard() {
                         </svg>
                       )
                     },
-                    { 
-                      id: 'archive', 
-                      label: 'الأرشيف والملغى',
-                      icon: (
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                        </svg>
-                      )
-                    },
+
                     { 
                       id: 'db_records', 
                       label: 'سجلات قاعدة البيانات',
@@ -516,242 +510,412 @@ export default function AdminDashboard() {
 
             {/* USERS TAB */}
             {activeTab === 'users' && (
-              <>
-                {/* Add user form */}
-                <div className="bg-slate-50/50 border border-slate-100 p-5 rounded-3xl space-y-4">
-                  <h3 className="font-black text-slate-800 text-sm flex items-center gap-2 pb-2 border-b border-slate-150/40">
-                    <span className="w-1.5 h-4 rounded-full bg-slate-700 inline-block" />
-                    إضافة مستخدم مصرح له جديد
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <input
-                      type="email"
-                      value={newEmail}
-                      onChange={e => setNewEmail(e.target.value)}
-                      className="px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-800/10 bg-white text-slate-700 text-sm transition-all"
-                      placeholder="البريد الإلكتروني"
-                    />
-                    <input
-                      type="text"
-                      value={newName}
-                      onChange={e => setNewName(e.target.value)}
-                      className="px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-800/10 bg-white text-slate-700 text-sm transition-all"
-                      placeholder="الاسم الكامل"
-                    />
-                    <select
-                      value={newRole}
-                      onChange={e => setNewRole(e.target.value as 'user' | 'admin' | 'servant' | 'church_leader')}
-                      className="px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-800/10 bg-white text-sm transition-all font-bold text-slate-700 cursor-pointer"
-                    >
-                      <option value="user">قائد فريق (User)</option>
-                      <option value="church_leader">مسؤول كنيسة</option>
-                      <option value="servant">خادم مقيم / servant</option>
-                      <option value="admin">مسؤول (Admin)</option>
-                    </select>
+              <div className="space-y-5 animate-fade-in">
+                
+                {/* 1. Header & Summary Quick Stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-3xs flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-black text-lg shrink-0">
+                      <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400">إجمالي المصرح لهم</p>
+                      <p className="text-lg font-black text-slate-800 leading-tight">{allowedUsers.length}</p>
+                    </div>
                   </div>
-                  {newRole === 'church_leader' && (
-                    <div className="mt-2">
-                      <select
-                        value={newChurchName}
-                        onChange={e => setNewChurchName(e.target.value)}
-                        className="w-full px-4 py-3 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/10 bg-emerald-50/30 text-sm transition-all font-bold text-slate-700 cursor-pointer"
+
+                  <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-3xs flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg shrink-0">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400">قادة الفرق</p>
+                      <p className="text-lg font-black text-blue-700 leading-tight">
+                        {allowedUsers.filter(u => u.role === 'user').length}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-3xs flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-lg shrink-0">
+                      <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400">مسؤولو الكنائس</p>
+                      <p className="text-lg font-black text-emerald-700 leading-tight">
+                        {allowedUsers.filter(u => u.role === 'church_leader').length}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-3xs flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-lg shrink-0">
+                      <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400">الخدام والمسؤولون</p>
+                      <p className="text-lg font-black text-indigo-700 leading-tight">
+                        {allowedUsers.filter(u => u.role === 'servant' || u.role === 'admin').length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Control Toolbar: Search + Action Toggles */}
+                <div className="bg-white border border-slate-150/70 p-4 rounded-3xl space-y-4 shadow-3xs">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    
+                    {/* Live Search Input */}
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={userSearchQuery}
+                        onChange={e => setUserSearchQuery(e.target.value)}
+                        placeholder="ابحث بالاسم، البريد الإلكتروني، أو اسم الكنيسة..."
+                        className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-800 focus:bg-white transition-all shadow-3xs"
+                      />
+                      <svg className="w-4 h-4 text-slate-400 absolute right-3.5 top-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      {userSearchQuery && (
+                        <button
+                          onClick={() => setUserSearchQuery('')}
+                          className="absolute left-3 top-2.5 text-slate-400 hover:text-slate-600 font-black text-xs cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setUserActionMode(userActionMode === 'add' ? 'none' : 'add')}
+                        className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-3xs ${
+                          userActionMode === 'add'
+                            ? 'bg-slate-900 text-white shadow-md shadow-slate-900/15'
+                            : 'bg-slate-100 hover:bg-slate-200/70 text-slate-700'
+                        }`}
                       >
-                        <option value="">اختر الكنيسة التابع لها...</option>
-                        {churches.map((church, idx) => (
-                          <option key={idx} value={church}>{church}</option>
-                        ))}
-                      </select>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>إضافة مستخدم</span>
+                      </button>
+
+                      <button
+                        onClick={() => setUserActionMode(userActionMode === 'import' ? 'none' : 'import')}
+                        className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-3xs ${
+                          userActionMode === 'import'
+                            ? 'bg-emerald-700 text-white shadow-md shadow-emerald-700/15'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/50'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        <span>استيراد Excel</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Collapsible Action Drawer 1: Add Single User */}
+                  {userActionMode === 'add' && (
+                    <div className="pt-4 border-t border-slate-100 space-y-4 animate-scale-in">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-black text-xs text-slate-800 flex items-center gap-1.5">
+                          <span className="w-1.5 h-3.5 rounded-full bg-slate-800 inline-block" />
+                          إضافة مستخدم مصرح له جديد
+                        </h4>
+                        <button onClick={() => setUserActionMode('none')} className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer">إغلاق</button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <input
+                          type="email"
+                          value={newEmail}
+                          onChange={e => setNewEmail(e.target.value)}
+                          className="px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 bg-slate-50/50 text-slate-800 text-xs font-bold transition-all"
+                          placeholder="البريد الإلكتروني..."
+                        />
+                        <input
+                          type="text"
+                          value={newName}
+                          onChange={e => setNewName(e.target.value)}
+                          className="px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 bg-slate-50/50 text-slate-800 text-xs font-bold transition-all"
+                          placeholder="الاسم الكامل..."
+                        />
+                        <select
+                          value={newRole}
+                          onChange={e => setNewRole(e.target.value as 'user' | 'admin' | 'servant' | 'church_leader')}
+                          className="px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-slate-800 bg-slate-50/50 text-xs transition-all font-black text-slate-700 cursor-pointer"
+                        >
+                          <option value="user">قائد فريق (User)</option>
+                          <option value="church_leader">مسؤول كنيسة</option>
+                          <option value="servant">خادم مقيم / Servant</option>
+                          <option value="admin">مسؤول (Admin)</option>
+                        </select>
+                      </div>
+
+                      {newRole === 'church_leader' && (
+                        <div>
+                          <select
+                            value={newChurchName}
+                            onChange={e => setNewChurchName(e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-600 bg-emerald-50/30 text-xs transition-all font-bold text-slate-800 cursor-pointer"
+                          >
+                            <option value="">اختر الكنيسة التابع لها مسؤول الكنيسة...</option>
+                            {churches.map((church, idx) => (
+                              <option key={idx} value={church}>{church}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {addError && <p className="text-rose-500 text-xs font-bold">{addError}</p>}
+
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handleAddUser}
+                          disabled={adding}
+                          className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs disabled:opacity-50 transition-all shadow-md shadow-slate-900/10 active:scale-95 cursor-pointer flex items-center gap-2"
+                        >
+                          {adding ? (
+                            <>
+                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>جاري الإضافة...</span>
+                            </>
+                          ) : (
+                            <span>+ تأكيد الإضافة</span>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
-                  {addError && <p className="text-red-500 text-xs font-bold">{addError}</p>}
-                  <button
-                    onClick={handleAddUser}
-                    disabled={adding}
-                    className="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl text-sm disabled:opacity-50 transition-all shadow-md shadow-slate-800/10 active:scale-95 cursor-pointer shrink-0"
-                  >
-                    {adding ? 'جاري الإضافة...' : '+ إضافة'}
-                  </button>
-                </div>
 
-                {/* Bulk Excel Import Section */}
-                <div className="border-t border-slate-100 my-4 pt-4">
-                  <div className="flex flex-col gap-4 bg-slate-50/50 border border-slate-100 p-4 rounded-2xl">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div className="text-right flex-1">
-                        <h4 className="text-sm font-bold text-slate-800 mb-1">الاستيراد الجماعي من ملف Excel</h4>
-                        <p className="text-xs text-slate-500">
-                          يرجى رفع ملف Excel يحتوي على: العمود الأول (البريد الإلكتروني)، العمود الثاني (الاسم الكامل). وسيتم استيرادهم بالدور المحدد أدناه.
-                        </p>
+                  {/* Collapsible Action Drawer 2: Bulk Excel Import */}
+                  {userActionMode === 'import' && (
+                    <div className="pt-4 border-t border-slate-100 space-y-4 animate-scale-in">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-black text-xs text-emerald-800 flex items-center gap-1.5">
+                          <span className="w-1.5 h-3.5 rounded-full bg-emerald-600 inline-block" />
+                          الاستيراد الجماعي من ملف Excel
+                        </h4>
+                        <button onClick={() => setUserActionMode('none')} className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer">إغلاق</button>
                       </div>
-                      <label className={`relative flex items-center justify-center gap-2 px-5 py-3 border-2 border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/30 rounded-xl cursor-pointer text-slate-700 text-sm font-bold transition-all shrink-0 ${importing ? 'pointer-events-none opacity-55' : ''}`}>
-                        {importing ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                            <span>جاري الاستيراد...</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                            </svg>
-                            <span>رفع واستيراد ملف Excel</span>
-                          </>
-                        )}
-                        <input
-                          type="file"
-                          accept=".xlsx, .xls"
-                          onChange={handleExcelImport}
-                          className="hidden"
-                          disabled={importing}
-                        />
-                      </label>
+
+                      <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                        قم برفع ملف Excel يحتوي على: العمود الأول (البريد الإلكتروني) والعمود الثاني (الاسم الكامل). وسيتم منحهم الصلاحية بالدور المحدد.
+                      </p>
+
+                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <div className="flex-1 w-full flex items-center gap-2 bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
+                          <span className="text-xs font-bold text-slate-500 shrink-0">استيراد كـ:</span>
+                          <select
+                            value={importRole}
+                            onChange={e => setImportRole(e.target.value as 'user' | 'admin' | 'servant' | 'church_leader')}
+                            className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800 bg-white text-xs font-bold text-slate-800 cursor-pointer"
+                          >
+                            <option value="user">قائد فريق (User)</option>
+                            <option value="church_leader">مسؤول كنيسة</option>
+                            <option value="servant">خادم مقيم / Servant</option>
+                            <option value="admin">مسؤول (Admin)</option>
+                          </select>
+                        </div>
+
+                        <label className={`w-full sm:w-auto relative flex items-center justify-center gap-2 px-6 py-2.5 border border-emerald-500 bg-emerald-600 hover:bg-emerald-700 rounded-xl cursor-pointer text-white text-xs font-black transition-all shrink-0 shadow-md shadow-emerald-600/20 active:scale-95 ${importing ? 'pointer-events-none opacity-55' : ''}`}>
+                          {importing ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>جاري الاستيراد...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                              </svg>
+                              <span>اختيار ملف Excel ورفع</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept=".xlsx, .xls"
+                            onChange={handleExcelImport}
+                            className="hidden"
+                            disabled={importing}
+                          />
+                        </label>
+                      </div>
                     </div>
-                    {/* Role selector for import */}
-                    <div className="flex items-center gap-3 bg-white border border-slate-200/60 p-3 rounded-xl">
-                      <span className="text-xs font-bold text-slate-500 shrink-0">استيراد كـ:</span>
-                      <select
-                        value={importRole}
-                        onChange={e => setImportRole(e.target.value as 'user' | 'admin' | 'servant' | 'church_leader')}
-                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-800/10 bg-white text-sm font-bold text-slate-700 cursor-pointer transition-all"
+                  )}
+
+                  {/* 3. Role Filter Sub-Tabs */}
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pt-2 border-t border-slate-100">
+                    {([
+                      { id: 'all' as const, label: 'الكل', count: allowedUsers.length },
+                      { id: 'user' as const, label: 'قادة الفرق', count: allowedUsers.filter(u => u.role === 'user').length },
+                      { id: 'church_leader' as const, label: 'مسؤولو الكنائس', count: allowedUsers.filter(u => u.role === 'church_leader').length },
+                      { id: 'servant' as const, label: 'الخدام المقيمون', count: allowedUsers.filter(u => u.role === 'servant').length },
+                      { id: 'admin' as const, label: 'المسؤولون', count: allowedUsers.filter(u => u.role === 'admin').length },
+                    ]).map(filter => (
+                      <button
+                        key={filter.id}
+                        onClick={() => setUserRoleFilter(filter.id)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                          userRoleFilter === filter.id
+                            ? 'bg-slate-900 text-white shadow-md shadow-slate-900/15'
+                            : 'bg-slate-50 border border-slate-200/60 text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
                       >
-                        <option value="user">قائد فريق (User)</option>
-                        <option value="church_leader">مسؤول كنيسة</option>
-                        <option value="servant">خادم مقيم / Servant</option>
-                        <option value="admin">مسؤول (Admin)</option>
-                      </select>
-                    </div>
+                        {filter.label}
+                        <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[10px] font-black ${
+                          userRoleFilter === filter.id
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-200/70 text-slate-600'
+                        }`}>
+                          {filter.count}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Role Filter Sub-Tabs */}
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-                  {([
-                    { id: 'all' as const, label: 'الكل', count: allowedUsers.length },
-                    { id: 'user' as const, label: 'قادة الفرق', count: allowedUsers.filter(u => u.role === 'user').length },
-                    { id: 'church_leader' as const, label: 'مسؤولو الكنائس', count: allowedUsers.filter(u => u.role === 'church_leader').length },
-                    { id: 'servant' as const, label: 'الخدام المقيمون', count: allowedUsers.filter(u => u.role === 'servant').length },
-                    { id: 'admin' as const, label: 'المسؤولون', count: allowedUsers.filter(u => u.role === 'admin').length },
-                  ]).map(filter => (
-                    <button
-                      key={filter.id}
-                      onClick={() => setUserRoleFilter(filter.id)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                        userRoleFilter === filter.id
-                          ? 'bg-slate-800 text-white shadow-md shadow-slate-800/15'
-                          : 'bg-white border border-slate-200/60 text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      {filter.label}
-                      <span className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[10px] font-black ${
-                        userRoleFilter === filter.id
-                          ? 'bg-white/20 text-white'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {filter.count}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
+                {/* 4. Users Cards List */}
                 {loading ? (
-                  <div className="text-center py-8">
+                  <div className="text-center py-12">
                     <div className="w-8 h-8 border-4 border-slate-800 border-t-transparent rounded-full animate-spin mx-auto" />
                   </div>
-                ) : allowedUsers.length === 0 ? (
-                  <div className="text-center py-12 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 text-sm font-bold">
-                    لا يوجد مستخدمون مصرح لهم بعد
-                  </div>
-                ) : (
-                  <div className="space-y-2.5 max-h-[35vh] overflow-y-auto pr-1 scrollbar-hide">
-                    {allowedUsers.filter(u => userRoleFilter === 'all' || u.role === userRoleFilter).map(u => {
-                      const userChurch = u.churchName || u.teamDetails?.churchName;
-                      const churchColor = getChurchColor(userChurch || '');
+                ) : (() => {
+                  const searchLower = userSearchQuery.toLowerCase().trim();
+                  const filteredUsers = allowedUsers.filter(u => {
+                    const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+                    const church = u.churchName || u.teamDetails?.churchName || '';
+                    const matchesSearch = !searchLower || 
+                      u.name.toLowerCase().includes(searchLower) ||
+                      u.email.toLowerCase().includes(searchLower) ||
+                      church.toLowerCase().includes(searchLower);
+                    return matchesRole && matchesSearch;
+                  });
 
-                      return (
-                        <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white hover:bg-slate-50/80 border border-slate-100 p-4 sm:px-4 sm:py-3.5 rounded-2xl transition-all duration-200 hover:shadow-sm hover:border-slate-200/80 gap-3.5 sm:gap-3">
-                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                            {/* User Avatar */}
-                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black shadow-xs shrink-0 ${
-                              u.role === 'admin' 
-                                ? 'bg-slate-800 text-white shadow-slate-800/10' 
-                                : u.role === 'servant'
-                                  ? 'bg-indigo-600 text-white shadow-indigo-600/10'
-                                  : u.role === 'church_leader'
-                                    ? 'bg-emerald-600 text-white shadow-emerald-600/10'
-                                    : 'bg-slate-600 text-white shadow-slate-600/10'
-                            }`}>
-                              {u.name[0]}
+                  if (filteredUsers.length === 0) {
+                    return (
+                      <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-400 space-y-2">
+                        <p className="text-sm font-bold">لا يوجد مستخدمون مطبقون لهذا البحث أو الفلتر.</p>
+                        {userSearchQuery && (
+                          <button
+                            onClick={() => setUserSearchQuery('')}
+                            className="text-xs font-black text-slate-700 underline cursor-pointer hover:text-slate-900"
+                          >
+                            إعادة ضبط البحث
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1 scrollbar-hide">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 px-1">
+                        <span>عرض {filteredUsers.length} من أصل {allowedUsers.length} مستخدم</span>
+                      </div>
+                      
+                      {filteredUsers.map(u => {
+                        const userChurch = u.churchName || u.teamDetails?.churchName;
+                        const churchColor = getChurchColor(userChurch || '');
+
+                        return (
+                          <div 
+                            key={u.id} 
+                            className="flex flex-col sm:flex-row sm:items-center justify-between bg-white hover:bg-slate-50/80 border border-slate-150/70 p-4 rounded-2xl transition-all duration-200 hover:shadow-xs hover:border-slate-300 gap-3.5"
+                          >
+                            {/* User Avatar + Details */}
+                            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                              {/* Avatar */}
+                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-black shadow-xs shrink-0 ${
+                                u.role === 'admin' 
+                                  ? 'bg-slate-800 text-white shadow-slate-800/10' 
+                                  : u.role === 'servant'
+                                    ? 'bg-indigo-600 text-white shadow-indigo-600/10'
+                                    : u.role === 'church_leader'
+                                      ? 'bg-emerald-600 text-white shadow-emerald-600/10'
+                                      : 'bg-sky-600 text-white shadow-sky-600/10'
+                              }`}>
+                                {u.name[0]}
+                              </div>
+
+                              {/* Details */}
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-black text-slate-800 text-sm leading-tight truncate">{u.name}</p>
+                                  
+                                  {/* Role Badge */}
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
+                                    u.role === 'admin' 
+                                      ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
+                                      : u.role === 'servant'
+                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
+                                        : u.role === 'church_leader'
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
+                                          : 'bg-sky-50 text-sky-700 border-sky-200/40'
+                                  }`}>
+                                    {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
+                                  </span>
+                                </div>
+
+                                <p className="text-slate-450 text-xs font-semibold leading-normal py-0.5 truncate" dir="ltr">{u.email}</p>
+
+                                {/* Church Tag */}
+                                <div className="pt-0.5 flex items-center gap-2 flex-wrap">
+                                  {userChurch ? (
+                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-slate-200/60 shadow-3xs ${churchColor.badge}`}>
+                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: churchColor.hex }} />
+                                      <span>{userChurch}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-400 border border-slate-200/50">
+                                      غير محدد الكنيسة
+                                    </span>
+                                  )}
+
+                                  {u.teamDetails?.teamName && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-150/50">
+                                      <svg className="w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      </svg>
+                                      <span>{u.teamDetails.teamName}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
 
-                            {/* User Details */}
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-black text-slate-800 text-sm leading-tight truncate">{u.name}</p>
-                                {/* Mobile-only Role Badge */}
-                                <span className={`inline-block sm:hidden px-2.5 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
-                                  u.role === 'admin' 
-                                    ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
-                                    : u.role === 'servant'
-                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
-                                      : u.role === 'church_leader'
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
-                                        : 'bg-slate-50 text-slate-650 border-slate-150/60'
-                                }`}>
-                                  {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
-                                </span>
-                              </div>
-                              <p className="text-slate-450 text-xs font-semibold leading-none truncate" dir="ltr">{u.email}</p>
-
-                              {/* Church Badge - Read Only */}
-                              <div className="pt-0.5 flex items-center gap-2 flex-wrap">
-                                {userChurch ? (
-                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-slate-200/60 shadow-3xs ${churchColor.badge}`}>
-                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: churchColor.hex }} />
-                                    <span>⛪ {userChurch}</span>
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-400 border border-slate-200/50">
-                                    غير محدد الكنيسة
-                                  </span>
-                                )}
-
-                                {u.teamDetails?.teamName && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-150/50">
-                                    👥 {u.teamDetails.teamName}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-slate-100/60 pt-2.5 sm:pt-0 sm:border-0 shrink-0">
-                            {/* Desktop-only Role Badge */}
-                            <span className={`hidden sm:inline-block px-3 py-1 rounded-full text-[10px] font-black border shrink-0 ${
-                              u.role === 'admin' 
-                                ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
-                                : u.role === 'servant'
-                                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
-                                  : u.role === 'church_leader'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
-                                    : 'bg-slate-50 text-slate-650 border-slate-150/60'
-                            }`}>
-                              {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
-                            </span>
-
+                            {/* Delete Action Button */}
                             <button
                               onClick={() => setConfirmDeleteUser(u.id)}
                               disabled={removingId === u.id}
-                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center active:scale-95 shadow-3xs"
+                              className="px-3.5 py-1.5 border border-rose-200/60 text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold text-xs rounded-xl transition-all cursor-pointer active:scale-95 shadow-3xs w-full sm:w-auto text-center shrink-0 flex items-center justify-center gap-1.5"
                             >
-                              {removingId === u.id ? 'جاري الحذف...' : 'حذف'}
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              <span>{removingId === u.id ? 'جاري...' : 'حذف'}</span>
                             </button>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+              </div>
             )}
 
             {/* BOOKINGS TAB */}
@@ -1493,101 +1657,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ARCHIVE TAB */}
-            {activeTab === 'archive' && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="bg-slate-50/50 p-5 rounded-3xl border border-slate-100">
-                  <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
-                    <span className="w-1.5 h-4 rounded-full bg-slate-700 inline-block" />
-                    أرشيف الحجوزات الملغاة
-                  </h3>
-                  <p className="text-xs text-slate-400 font-bold mt-1">
-                    يمكنك هنا استعراض الحجوزات التي تم إلغاؤها، ومعرفة من قام بالإلغاء، أو استعادتها بأمان إلى جدول المواعيد النشط.
-                  </p>
-                </div>
 
-                {archiveError && (
-                  <div className="p-3.5 rounded-2xl text-xs font-bold text-center bg-rose-50 text-rose-800 border border-rose-100">
-                    {archiveError}
-                  </div>
-                )}
-
-                {archiveSuccess && (
-                  <div className="p-3.5 rounded-2xl text-xs font-bold text-center bg-emerald-50 text-emerald-800 border border-emerald-100">
-                    {archiveSuccess}
-                  </div>
-                )}
-
-                {allBookingsIncludingCancelled.filter(b => b.status === 'cancelled').length === 0 ? (
-                  <div className="text-center py-16 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
-                    لا توجد حجوزات ملغاة في الأرشيف حالياً.
-                  </div>
-                ) : (
-                  <div className="space-y-3.5 max-h-[45vh] overflow-y-auto pr-1 scrollbar-hide">
-                    {allBookingsIncludingCancelled
-                      .filter(b => b.status === 'cancelled')
-                      .map((b) => {
-                        const isRestoring = restoringBookingId === b.id;
-                        return (
-                          <div 
-                            key={b.id} 
-                            className="flex flex-col md:flex-row md:items-center md:justify-between bg-slate-50/30 hover:bg-slate-50/70 border border-slate-100 p-5 rounded-3xl transition-all duration-200 gap-4 hover:shadow-2xs"
-                          >
-                            <div className="flex-1 min-w-0 space-y-1.5">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="w-2 h-4 rounded-full bg-slate-500 shrink-0" />
-                                <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{b.churchName}</p>
-                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-rose-50 text-rose-700 border border-rose-200/50 leading-none">
-                                  ملغى
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-500 font-bold">
-                                <span className="text-slate-400 font-black">المشروع:</span> {b.title}
-                              </p>
-                              <p className="text-[11px] text-slate-450 font-bold flex flex-wrap items-center gap-1">
-                                <span className="text-slate-400">القائد:</span> 
-                                <span className="text-slate-800 font-black">{b.requesterName}</span> 
-                                <span className="text-slate-400 font-semibold" dir="ltr">({b.requesterEmail})</span>
-                              </p>
-                              {/* Audit trail */}
-                              <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] text-slate-400 font-bold">
-                                <span>
-                                  🗓️ الموعد الأصلي: {b.date} ({b.startTime} - {b.endTime})
-                                </span>
-                                {b.cancelledAt && (
-                                  <span>
-                                    ⏱️ وقت الإلغاء: {new Date(b.cancelledAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
-                                  </span>
-                                )}
-                                {b.cancelledBy && (
-                                  <span>
-                                    👤 بواسطة: <strong className="text-slate-600 font-black">{b.cancelledBy}</strong>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <button
-                              onClick={() => setConfirmRestoreBooking(b.id)}
-                              disabled={isRestoring}
-                              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl text-xs transition-all shadow-md shadow-slate-800/10 active:scale-95 disabled:opacity-50 cursor-pointer w-full md:w-auto text-center flex items-center justify-center gap-2 shrink-0"
-                            >
-                              {isRestoring ? (
-                                <>
-                                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  جاري الاستعادة...
-                                </>
-                              ) : (
-                                'استعادة الحجز'
-                              )}
-                            </button>
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* LEADERS DATA TAB */}
             {activeTab === 'leaders' && (
@@ -1873,18 +1943,17 @@ export default function AdminDashboard() {
                         const val = leaderboardSort === 'total' ? team.total : team.fields[leaderboardSort] || 0;
                         const churchColor = getChurchColor(team.churchName);
                         
-                        let trophy = '';
-                        if (idx === 0) trophy = '🏆';
-                        else if (idx === 1) trophy = '🥈';
-                        else if (idx === 2) trophy = '🥉';
-                        else trophy = `#${idx + 1}`;
+                        let rankBadge = `#${idx + 1}`;
+                        if (idx === 0) rankBadge = '#1';
+                        else if (idx === 1) rankBadge = '#2';
+                        else if (idx === 2) rankBadge = '#3';
 
                         return (
                           <div key={team.teamName} className="bg-white border border-slate-100 p-4 rounded-3xl hover:shadow-2xs transition-all flex flex-col gap-3 relative overflow-hidden">
                             <div className="flex items-center justify-between z-10 relative">
                               <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-black shrink-0 ${idx < 3 ? 'bg-amber-50 text-amber-500' : 'bg-slate-50 text-slate-400'}`}>
-                                  {trophy}
+                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black shrink-0 ${idx < 3 ? 'bg-amber-50 text-amber-600 border border-amber-200/60' : 'bg-slate-50 text-slate-400 border border-slate-200/50'}`}>
+                                  {rankBadge}
                                 </div>
                                 <div>
                                   <p className="font-black text-slate-800 text-sm leading-normal">{team.churchName}</p>
@@ -2000,15 +2069,15 @@ export default function AdminDashboard() {
                                   <p className="text-xs text-slate-500 font-bold">
                                     <span className="text-slate-400">المشروع:</span> {b.title} <span className="text-slate-300">|</span> <span className="text-slate-400">الفريق:</span> {b.teamName}
                                   </p>
-                                  <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
-                                    <span>📅 {b.date}</span>
-                                    <span dir="ltr">🕐 {b.startTime} - {b.endTime}</span>
-                                    <span>👤 {b.requesterName}</span>
+                                  <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold text-slate-400">
+                                    <span>تاريخ: {b.date}</span>
+                                    <span dir="ltr">وقت: {b.startTime} - {b.endTime}</span>
+                                    <span>القائد: {b.requesterName}</span>
                                     <span className="text-slate-300" dir="ltr">ID: {b.id}</span>
                                   </div>
                                   {isCancelled && b.cancelledAt && (
-                                    <p className="text-[10px] text-rose-400 font-bold">
-                                      🗑️ ألغي بواسطة: {b.cancelledBy || '—'} في {new Date(b.cancelledAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                                    <p className="text-[10px] text-rose-500 font-bold">
+                                      ألغي بواسطة: {b.cancelledBy || '—'} في {new Date(b.cancelledAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
                                     </p>
                                   )}
                                 </div>
@@ -2117,16 +2186,16 @@ export default function AdminDashboard() {
                                       مسؤول كنيسة
                                     </span>
                                   </div>
-                                  <p className="text-slate-450 text-xs font-semibold leading-none truncate mt-1" dir="ltr">{leader.email}</p>
+                                  <p className="text-slate-450 text-xs font-semibold leading-normal py-0.5 truncate mt-0.5" dir="ltr">{leader.email}</p>
                                   <div className="flex items-center gap-2 mt-1.5">
                                     {leaderChurch ? (
                                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-slate-200/60 shadow-3xs ${churchColor.badge}`}>
                                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: churchColor.hex }} />
-                                        ⛪ {leaderChurch}
+                                        {leaderChurch}
                                       </span>
                                     ) : (
                                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/50">
-                                        ⚠️ لم يتم تحديد الكنيسة
+                                        لم يتم تحديد الكنيسة
                                       </span>
                                     )}
                                   </div>
