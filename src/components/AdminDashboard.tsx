@@ -280,6 +280,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleUpdateChurch = async (userId: string, churchName: string) => {
+    try {
+      await setDoc(doc(db, 'allowed_users', userId), { churchName }, { merge: true });
+      setAllowedUsers(prev => prev.map(u => u.id === userId ? { ...u, churchName } : u));
+      toast.success('تم تحديث كنيسة المستخدم بنجاح');
+    } catch (err) {
+      console.error('Error updating user church:', err);
+      toast.error('حدث خطأ أثناء تحديث الكنيسة');
+    }
+  };
+
   const handleExportCSV = async () => {
     try {
       const auth = getAuth();
@@ -361,32 +372,105 @@ export default function AdminDashboard() {
           </div>
 
           {/* Tabs capsule styled control */}
-          <div className="px-6 py-4 bg-white border-b border-slate-50 shrink-0 flex items-center justify-center">
-            <div className="bg-slate-100/85 p-1 rounded-2xl flex gap-1 w-full max-w-xl overflow-x-auto scrollbar-hide flex-nowrap sm:flex-wrap">
-              {(
-                [
-                  { id: 'users', label: 'المستخدمون' },
-                  { id: 'bookings', label: 'سجل المشاريع' },
-                  { id: 'evaluations', label: 'نتائج التقييم' },
-                  { id: 'leaders', label: 'بيانات القادة' },
-                  { id: 'leaderboard', label: 'لوحة الصدارة' },
-                  { id: 'analytics', label: 'إحصائيات الأداء' },
-                  { id: 'archive', label: 'الأرشيف والملغى' },
-                  { id: 'settings', label: 'إعدادات النظام' }
-                ] as const
-              ).map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-2.5 text-xs font-black rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 shrink-0 px-4 sm:px-0 sm:flex-1 ${
-                    activeTab === tab.id 
-                      ? 'bg-white text-slate-800 shadow-sm border border-slate-200/40' 
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+          <div className="px-4 sm:px-6 py-3.5 bg-slate-50/80 border-b border-slate-150/70 shrink-0">
+            <div className="overflow-x-auto scrollbar-hide">
+              <div className="inline-flex p-1.5 bg-slate-200/60 rounded-2xl gap-1.5 w-full sm:w-auto min-w-full sm:min-w-0 justify-start sm:justify-center">
+                {(
+                  [
+                    { 
+                      id: 'users', 
+                      label: 'المستخدمون',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'bookings', 
+                      label: 'سجل المشاريع',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'evaluations', 
+                      label: 'نتائج التقييم',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'leaders', 
+                      label: 'بيانات القادة',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 012-2h2a2 2 0 012 2v1m-6 0h6" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'leaderboard', 
+                      label: 'لوحة الصدارة',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'analytics', 
+                      label: 'إحصائيات الأداء',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'archive', 
+                      label: 'الأرشيف والملغى',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'settings', 
+                      label: 'إعدادات النظام',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )
+                    }
+                  ] as const
+                ).map(tab => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-3.5 py-2.5 text-xs font-black rounded-xl transition-all duration-200 cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                        isActive 
+                          ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20 scale-[1.02]' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                      }`}
+                    >
+                      <span className={`transition-transform duration-200 ${isActive ? 'scale-110 text-emerald-400' : 'text-slate-400'}`}>
+                        {tab.icon}
+                      </span>
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -542,62 +626,92 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-2.5 max-h-[35vh] overflow-y-auto pr-1 scrollbar-hide">
-                    {allowedUsers.filter(u => userRoleFilter === 'all' || u.role === userRoleFilter).map(u => (
-                      <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 sm:px-4 sm:py-3 rounded-2xl transition-all duration-200 hover:shadow-2xs gap-3.5 sm:gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm shrink-0 ${
-                            u.role === 'admin' 
-                              ? 'bg-slate-700 text-white shadow-slate-700/10' 
-                              : u.role === 'servant'
-                                ? 'bg-indigo-600 text-white shadow-indigo-600/10'
-                                : u.role === 'church_leader'
-                                  ? 'bg-emerald-600 text-white shadow-emerald-600/10'
-                                  : 'bg-slate-500 text-white shadow-slate-500/10'
-                          }`}>
-                            {u.name[0]}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{u.name}</p>
-                              {/* Mobile-only Role Badge */}
-                              <span className={`inline-block sm:hidden px-2 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
-                                u.role === 'admin' 
-                                  ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
-                                  : u.role === 'servant'
-                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
-                                    : u.role === 'church_leader'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
-                                      : 'bg-slate-50 text-slate-650 border-slate-150/60'
-                              }`}>
-                                {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
-                              </span>
+                    {allowedUsers.filter(u => userRoleFilter === 'all' || u.role === userRoleFilter).map(u => {
+                      const userChurch = u.churchName || u.teamDetails?.churchName;
+                      const churchColor = getChurchColor(userChurch || '');
+
+                      return (
+                        <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white hover:bg-slate-50/80 border border-slate-100 p-4 sm:px-4 sm:py-3.5 rounded-2xl transition-all duration-200 hover:shadow-sm hover:border-slate-200/80 gap-3.5 sm:gap-3">
+                          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                            {/* User Avatar */}
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black shadow-xs shrink-0 ${
+                              u.role === 'admin' 
+                                ? 'bg-slate-800 text-white shadow-slate-800/10' 
+                                : u.role === 'servant'
+                                  ? 'bg-indigo-600 text-white shadow-indigo-600/10'
+                                  : u.role === 'church_leader'
+                                    ? 'bg-emerald-600 text-white shadow-emerald-600/10'
+                                    : 'bg-slate-600 text-white shadow-slate-600/10'
+                            }`}>
+                              {u.name[0]}
                             </div>
-                            <p className="text-slate-450 text-xs font-semibold leading-normal truncate" dir="ltr">{u.email}</p>
+
+                            {/* User Details */}
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-black text-slate-800 text-sm leading-tight truncate">{u.name}</p>
+                                {/* Mobile-only Role Badge */}
+                                <span className={`inline-block sm:hidden px-2.5 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
+                                  u.role === 'admin' 
+                                    ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
+                                    : u.role === 'servant'
+                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
+                                      : u.role === 'church_leader'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
+                                        : 'bg-slate-50 text-slate-650 border-slate-150/60'
+                                }`}>
+                                  {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
+                                </span>
+                              </div>
+                              <p className="text-slate-450 text-xs font-semibold leading-none truncate" dir="ltr">{u.email}</p>
+
+                              {/* Church Badge - Read Only */}
+                              <div className="pt-0.5 flex items-center gap-2 flex-wrap">
+                                {userChurch ? (
+                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-slate-200/60 shadow-3xs ${churchColor.badge}`}>
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: churchColor.hex }} />
+                                    <span>⛪ {userChurch}</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-400 border border-slate-200/50">
+                                    غير محدد الكنيسة
+                                  </span>
+                                )}
+
+                                {u.teamDetails?.teamName && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-150/50">
+                                    👥 {u.teamDetails.teamName}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-slate-100/60 pt-2.5 sm:pt-0 sm:border-0 shrink-0">
+                            {/* Desktop-only Role Badge */}
+                            <span className={`hidden sm:inline-block px-3 py-1 rounded-full text-[10px] font-black border shrink-0 ${
+                              u.role === 'admin' 
+                                ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
+                                : u.role === 'servant'
+                                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
+                                  : u.role === 'church_leader'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
+                                    : 'bg-slate-50 text-slate-650 border-slate-150/60'
+                            }`}>
+                              {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
+                            </span>
+
+                            <button
+                              onClick={() => setConfirmDeleteUser(u.id)}
+                              disabled={removingId === u.id}
+                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center active:scale-95 shadow-3xs"
+                            >
+                              {removingId === u.id ? 'جاري الحذف...' : 'حذف'}
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-slate-100/50 pt-2.5 sm:pt-0 sm:border-0">
-                          {/* Desktop-only Role Badge */}
-                          <span className={`hidden sm:inline-block px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 ${
-                            u.role === 'admin' 
-                              ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
-                              : u.role === 'servant'
-                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
-                                : u.role === 'church_leader'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
-                                  : 'bg-slate-50 text-slate-650 border-slate-150/60'
-                          }`}>
-                            {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
-                          </span>
-                          <button
-                            onClick={() => setConfirmDeleteUser(u.id)}
-                            disabled={removingId === u.id}
-                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center active:scale-95 shadow-2xs"
-                          >
-                            {removingId === u.id ? 'جاري الحذف...' : 'حذف'}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </>
