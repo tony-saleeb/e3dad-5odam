@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ==========================================================================
    THEME PROVIDER DESIGN SYSTEM & CSS VARIABLES
@@ -112,8 +113,9 @@ body.dark .bg-white,
 html.dark header,
 body.dark header,
 [data-theme="dark"] header {
-  background-color: #151c2c !important;
-  color: #f8fafc !important;
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-elevated) !important;
 }
 
 /* Hover States for Dark Cards */
@@ -135,13 +137,26 @@ html.dark .bg-slate-100,
 body.dark .bg-slate-50,
 body.dark .bg-slate-100,
 [data-theme="dark"] .bg-slate-50,
-[data-theme="dark"] .bg-slate-100,
+[data-theme="dark"] .bg-slate-100 {
+  background-color: var(--bg-main) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Gray Panels used inside White Cards (e.g., hover:bg-gray-100) */
 .dark .bg-gray-50,
 .dark .bg-gray-100,
 html.dark .bg-gray-50,
 html.dark .bg-gray-100 {
-  background-color: #0b0f19 !important;
-  color: #f8fafc !important;
+  background-color: var(--bg-panel) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Hover States for Sub-Panels */
+.dark .hover\:bg-gray-100:hover,
+html.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-50:hover {
+  background-color: var(--bg-surface-hover) !important;
 }
 
 /* Translucent & Elevated Slate Panels */
@@ -157,8 +172,8 @@ html.dark .bg-gray-100 {
 .dark .bg-slate-200,
 html.dark .bg-slate-200,
 body.dark .bg-slate-200 {
-  background-color: #1d273e !important;
-  color: #f8fafc !important;
+  background-color: var(--bg-surface-hover) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Dark Modal Overlay Backdrop */
@@ -188,7 +203,7 @@ body.dark .bg-black\/50 {
 .dark .border-gray-200,
 html.dark .border-slate-200,
 html.dark .border-gray-100 {
-  border-color: #243048 !important;
+  border-color: var(--border-color) !important;
 }
 
 /* Headings and Primary Text */
@@ -204,7 +219,7 @@ html.dark .text-slate-800,
 html.dark .text-slate-700,
 html.dark .text-gray-900,
 html.dark .text-gray-800 {
-  color: #f1f5f9 !important;
+  color: var(--text-primary) !important;
 }
 
 /* Secondary & Muted Text */
@@ -220,7 +235,7 @@ html.dark .text-slate-500,
 html.dark .text-slate-400,
 html.dark .text-gray-600,
 html.dark .text-gray-500 {
-  color: #cbd5e1 !important;
+  color: var(--text-secondary) !important;
 }
 
 /* Inputs, Selects & Textareas */
@@ -230,9 +245,9 @@ html.dark .text-gray-500 {
 html.dark input:not([type="checkbox"]):not([type="radio"]),
 html.dark select,
 html.dark textarea {
-  background-color: #151c2c !important;
-  color: #f8fafc !important;
-  border-color: #243048 !important;
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
 }
 
 .dark input:focus,
