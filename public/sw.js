@@ -1,7 +1,7 @@
 // Service Worker for إعداد 5odam PWA
 // Provides offline app shell caching and network-first strategy for API calls
 
-const CACHE_NAME = 'e3dad-5odam-v1';
+const CACHE_NAME = 'e3dad-5odam-v2';
 const APP_SHELL = [
   '/',
   '/manifest.json',

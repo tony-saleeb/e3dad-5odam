@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BookingsProvider } from "@/contexts/BookingsContext";
 import { ModalProvider } from "@/contexts/ModalContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 
 const cairo = Cairo({
@@ -43,25 +44,54 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var t = localStorage.getItem('app-theme');
+                  if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
       </head>
-      <body className={`${cairo.variable} font-sans antialiased bg-slate-50`} suppressHydrationWarning>
-        <SettingsProvider>
-          <AuthProvider>
-            <BookingsProvider>
-              <ModalProvider>
-                {children}
-              </ModalProvider>
-            </BookingsProvider>
-          </AuthProvider>
-        </SettingsProvider>
-        {/* Service Worker Registration */}
+      <body className={`${cairo.variable} font-sans antialiased bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200`} suppressHydrationWarning>
+        <ThemeProvider>
+          <SettingsProvider>
+            <AuthProvider>
+              <BookingsProvider>
+                <ModalProvider>
+                  {children}
+                </ModalProvider>
+              </BookingsProvider>
+            </AuthProvider>
+          </SettingsProvider>
+        </ThemeProvider>
+        {/* Service Worker Cleanup in Dev / Registration in Prod */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').catch(function() {});
-                });
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for (var r of registrations) { r.unregister(); }
+                  });
+                  if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                      for (var name of names) { caches.delete(name); }
+                    });
+                  }
+                } else {
+                  window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js').catch(function() {});
+                  });
+                }
               }
             `,
           }}

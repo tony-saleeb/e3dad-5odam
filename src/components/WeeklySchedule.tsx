@@ -18,7 +18,11 @@ export default function WeeklySchedule() {
   const { settings, loading: settingsLoading } = useSettings();
   
   const { timePeriods, bookingRange } = settings;
-  const { startMonth, endMonth, allowedDays } = bookingRange;
+  const { startMonth, endMonth, allowedDays, excludedDates = [] } = bookingRange;
+
+  const isDateExcluded = useCallback((dateStr: string): boolean => {
+    return (excludedDates || []).includes(dateStr);
+  }, [excludedDates]);
 
   const userAlreadyBooked = !isAdmin && !isChurchLeader && user?.email && hasUserAlreadyBooked(user.email);
 
@@ -126,11 +130,13 @@ export default function WeeklySchedule() {
   const handleDayClick = (date: Date, startTime?: string, endTime?: string) => {
     if (!user || !canCreateBooking) return;
     
-    // CHURCH ADAPTATION: Disable booking on non-allowed days
+    // CHURCH ADAPTATION: Disable booking on non-allowed days or excluded dates
     if (!allowedDays.includes(date.getDay())) return;
 
-    // Day-locking: prevent church leader from booking on locked days
     const dateStr = format(date, "yyyy-MM-dd");
+    if (isDateExcluded(dateStr)) return;
+
+    // Day-locking: prevent church leader from booking on locked days
     if (isDayLockedForChurch(dateStr)) return;
     
     setSelectedDate(dateStr);
@@ -420,16 +426,19 @@ export default function WeeklySchedule() {
           {/* Day Rows */}
           <div className="flex flex-col gap-3">
             {visibleDays.map((day) => {
-              const isAllowed = allowedDays.includes(day.getDay());
-              const dayBookings = getBookingsForDay(day);
               const dateStr = format(day, "yyyy-MM-dd");
+              const isDayExcluded = isDateExcluded(dateStr);
+              const isAllowed = allowedDays.includes(day.getDay()) && !isDayExcluded;
+              const dayBookings = getBookingsForDay(day);
               const isDayLocked = isDayLockedForChurch(dateStr);
               return (
-                <div key={day.toISOString()} className={`flex gap-4 items-center p-2 rounded-2xl transition-all ${isToday(day) ? 'bg-emerald-500/4 border border-emerald-200/50 shadow-md shadow-emerald-500/2' : 'bg-transparent'} ${!isAllowed ? 'opacity-40' : ''} ${isDayLocked ? 'opacity-50' : ''}`}>
-                  <div className={`w-24 p-4 rounded-xl text-center shrink-0 flex flex-col justify-center transition-all ${isToday(day) ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 font-bold scale-105' : isDayLocked ? 'bg-amber-50 border border-amber-200 shadow-sm' : 'bg-white border border-slate-100 shadow-sm'}`}>
-                    <p className={`text-xs font-black ${isToday(day) ? 'text-emerald-100' : isDayLocked ? 'text-amber-500' : 'text-slate-400'}`}>{dayNames[day.getDay()]}</p>
-                    <p className={`text-2xl font-black mt-0.5 ${isDayLocked ? 'text-amber-600' : ''}`}>{format(day, "d")}</p>
-                    {isDayLocked && (
+                <div key={day.toISOString()} className={`flex gap-4 items-center p-2 rounded-2xl transition-all ${isToday(day) ? 'bg-emerald-500/4 border border-emerald-200/50 shadow-md shadow-emerald-500/2' : 'bg-transparent'} ${!isAllowed ? 'opacity-45' : ''} ${isDayLocked ? 'opacity-50' : ''}`}>
+                  <div className={`w-24 p-4 rounded-xl text-center shrink-0 flex flex-col justify-center transition-all ${isToday(day) ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 font-bold scale-105' : isDayExcluded ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 shadow-sm' : isDayLocked ? 'bg-amber-50 border border-amber-200 shadow-sm' : 'bg-white border border-slate-100 shadow-sm'}`}>
+                    <p className={`text-xs font-black ${isToday(day) ? 'text-emerald-100' : isDayExcluded ? 'text-rose-600 dark:text-rose-400' : isDayLocked ? 'text-amber-500' : 'text-slate-400'}`}>{dayNames[day.getDay()]}</p>
+                    <p className={`text-2xl font-black mt-0.5 ${isDayExcluded ? 'text-rose-700 dark:text-rose-300' : isDayLocked ? 'text-amber-600' : ''}`}>{format(day, "d")}</p>
+                    {isDayExcluded ? (
+                      <span className="text-[9px] font-extrabold text-rose-600 dark:text-rose-400 mt-1 bg-rose-100 dark:bg-rose-900/60 px-1 py-0.5 rounded-md">مستثنى</span>
+                    ) : isDayLocked && (
                       <svg className="w-3.5 h-3.5 text-amber-500 mx-auto mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     )}
                   </div>
@@ -445,6 +454,13 @@ export default function WeeklySchedule() {
                           >
                             <p className="font-black text-white text-base tracking-tight leading-snug pb-0.5">{booking.churchName}</p>
                             <p className="mt-1.5 text-xs text-white/90 font-medium pb-0.5"><strong className="text-white opacity-100 font-bold">المشروع:</strong> {booking.title}</p>
+                          </div>
+                        ) : isDayExcluded ? (
+                          <div className="absolute inset-0 bg-rose-50/60 dark:bg-rose-950/30 rounded-2xl border border-dashed border-rose-200 dark:border-rose-800/60 flex items-center justify-center">
+                            <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                              <span className="text-xs font-bold">مستثنى من الحجز</span>
+                            </div>
                           </div>
                         ) : isAllowed && user && canCreateBooking && !userAlreadyBooked && !isDayLocked ? (
                           <button 

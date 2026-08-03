@@ -32,7 +32,8 @@ let cacheExpirationTime = 0;
 export default function BookingModal() {
   const { isAdmin, isChurchLeader, user } = useAuth();
   const { settings } = useSettings();
-  const { teamMemberLimits } = settings;
+  const { teamMemberLimits, bookingRange } = settings;
+  const { excludedDates = [] } = bookingRange || {};
   const { addBooking, isPeriodBooked, hasUserAlreadyBooked, bookings } = useBookings();
   const {
     isBookingModalOpen,
@@ -189,6 +190,10 @@ export default function BookingModal() {
     const newErrors: Record<string, string> = {};
     if (!formData.date) newErrors.date = 'يرجى اختيار تاريخ';
     if (!formData.startTime) newErrors.startTime = 'يرجى اختيار فترة زمنية';
+
+    if (formData.date && (excludedDates || []).includes(formData.date)) {
+      newErrors.date = 'هذا اليوم مستثنى من الحجز بواسطة إدارة النظام';
+    }
 
     if (formData.date && formData.startTime && formData.endTime && isPeriodBooked(formData.date, formData.startTime, formData.endTime)) {
       newErrors.startTime = 'هذه الفترة محجوزة بالفعل، يرجى اختيار فترة أخرى';

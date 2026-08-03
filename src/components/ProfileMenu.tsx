@@ -3,15 +3,17 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { getChurchColor } from '@/data/initialData';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ProfileMenuProps {
   onClose: () => void;
-  variant: 'desktop' | 'mobile';
+  variant?: 'desktop' | 'mobile';
 }
 
-export default function ProfileMenu({ onClose, variant }: ProfileMenuProps) {
+export default function ProfileMenu({ onClose, variant = 'desktop' }: ProfileMenuProps) {
   const { user, isAdmin, isServant, isChurchLeader, signOut } = useAuth();
   const { openAdminDashboard, setIsEditingTeamDetails, openServantPortal } = useSchedulerStore();
+  const { theme, toggleTheme } = useTheme();
 
   const churchName = isChurchLeader ? user?.churchName : (!isAdmin && !isServant ? user?.teamDetails?.churchName : undefined);
 
@@ -135,6 +137,32 @@ export default function ProfileMenu({ onClose, variant }: ProfileMenuProps) {
             </div>
           </button>
         )}
+
+        <button
+          onClick={() => { toggleTheme(); onClose(); }}
+          className={`w-full flex items-center justify-between ${itemPaddingClass} rounded-xl text-slate-700 hover:bg-slate-50 transition-all text-right cursor-pointer`}
+        >
+          <div className="flex items-center gap-3">
+            <span className={`${iconBoxClass} rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-700/50 flex items-center justify-center shrink-0`}>
+              {theme === 'dark' ? (
+                <svg className={`${svgClass} text-amber-400`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className={`${svgClass} text-amber-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </span>
+            <div>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200">الوضع الداكن</p>
+              {!isMobile && <p className="text-xs text-slate-400">التحويل بين الوضع الفاتح والداكن</p>}
+            </div>
+          </div>
+          <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            {theme === 'dark' ? 'مفعل' : 'معطل'}
+          </span>
+        </button>
 
         <div className="border-t border-slate-100 my-1" />
 

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import ProfileMenu from './ProfileMenu';
+import ThemeToggle from './ThemeToggle';
 
 export default function Header() {
   const { user, isServant } = useAuth();
@@ -44,7 +45,7 @@ export default function Header() {
     : user?.email?.[0]?.toUpperCase() || '?';
 
   return (
-    <header className="bg-white border-b border-gray-100" dir="rtl">
+    <header className="bg-white border-b border-gray-100 dark:bg-slate-900 dark:border-slate-800 transition-colors" dir="rtl">
       {/* ===== DESKTOP HEADER ===== */}
       <div className="hidden lg:block max-w-400 mx-auto px-6 py-4">
         <div className="flex gap-6">
@@ -55,20 +56,22 @@ export default function Header() {
                 <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-800">جدول الحجوزات</h1>
-                <p className="text-xs text-gray-400">حجز ميعاد مناقشة المشاريع</p>
+                <h1 className="text-xl font-bold text-gray-800 dark:text-slate-100">جدول الحجوزات</h1>
+                <p className="text-xs text-gray-400 dark:text-slate-400">حجز ميعاد مناقشة المشاريع</p>
               </div>
             </div>
 
             {/* Center */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-4">
-              <span className="px-4 py-2 rounded-xl bg-slate-50 text-slate-700 text-sm font-bold border border-slate-200 flex items-center gap-2">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-4 pointer-events-none">
+              <span className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-2 pointer-events-auto">
                 نظام إدارة الحجوزات
               </span>
             </div>
 
-            {/* Left: Profile */}
-            <div className="flex items-center gap-3" ref={desktopRef}>
+            {/* Left: Actions & Profile */}
+            <div className="flex items-center gap-3 relative z-20" ref={desktopRef}>
+              <ThemeToggle />
+
               {isServant && (
                 <button
                   onClick={openServantPortal}
@@ -124,6 +127,8 @@ export default function Header() {
           </div>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle />
+
             {/* Mobile profile button */}
             <div className="relative" ref={mobileRef}>
               <button

@@ -26,6 +26,159 @@ body {
   font-family: var(--font-cairo), "Cairo", system-ui, -apple-system, sans-serif;
   min-height: 100vh;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ==========================================================================
+   UNCONDITIONAL DARK THEME OVERRIDES
+   When html or body has .dark or [data-theme="dark"]
+   ========================================================================== */
+
+html.dark,
+body.dark,
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark !important;
+}
+
+/* Root & Body background */
+html.dark,
+html.dark body,
+body.dark,
+[data-theme="dark"],
+[data-theme="dark"] body {
+  background-color: #090d16 !important;
+  color: #f8fafc !important;
+}
+
+/* Main Layout Wrapper */
+.dark div.min-h-screen,
+html.dark div.min-h-screen,
+body.dark div.min-h-screen,
+[data-theme="dark"] div.min-h-screen,
+.dark main,
+html.dark main,
+body.dark main {
+  background-color: #090d16 !important;
+}
+
+/* White Containers & Header */
+.dark .bg-white,
+html.dark .bg-white,
+body.dark .bg-white,
+[data-theme="dark"] .bg-white,
+.dark header,
+html.dark header,
+body.dark header,
+[data-theme="dark"] header {
+  background-color: #151c2c !important;
+  color: #f8fafc !important;
+}
+
+/* Light Slate Containers & Backgrounds */
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+html.dark .bg-slate-50,
+html.dark .bg-slate-100,
+body.dark .bg-slate-50,
+body.dark .bg-slate-100,
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-100,
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+html.dark .bg-gray-50,
+html.dark .bg-gray-100 {
+  background-color: #090d16 !important;
+  color: #f8fafc !important;
+}
+
+/* Translucent & Elevated Slate Panels */
+.dark .bg-slate-50\/20,
+.dark .bg-slate-50\/30,
+.dark .bg-slate-50\/40,
+.dark .bg-slate-50\/50,
+.dark .bg-slate-50\/60,
+.dark .bg-slate-50\/70,
+.dark .bg-slate-50\/80,
+.dark .bg-slate-100\/85,
+.dark .bg-slate-200\/60,
+.dark .bg-slate-200,
+html.dark .bg-slate-200,
+body.dark .bg-slate-200 {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+/* Borders */
+.dark .border-slate-50,
+.dark .border-slate-100,
+.dark .border-slate-150\/40,
+.dark .border-slate-150\/50,
+.dark .border-slate-150\/70,
+.dark .border-slate-200,
+.dark .border-slate-200\/50,
+.dark .border-slate-200\/60,
+.dark .border-slate-200\/80,
+.dark .border-slate-300,
+.dark .border-gray-100,
+.dark .border-gray-200,
+html.dark .border-slate-200,
+html.dark .border-gray-100 {
+  border-color: #243048 !important;
+}
+
+/* Text Colors */
+.dark .text-slate-900,
+.dark .text-slate-850,
+.dark .text-slate-800,
+.dark .text-slate-700,
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700,
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700,
+html.dark .text-gray-900,
+html.dark .text-gray-800 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-450,
+.dark .text-slate-400,
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400,
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-slate-400,
+html.dark .text-gray-600,
+html.dark .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+/* Inputs, Selects & Textareas */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea,
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark select,
+html.dark textarea {
+  background-color: #151c2c !important;
+  color: #f8fafc !important;
+  border-color: #243048 !important;
+}
+
+/* Modals & Dialog Overlays */
+html.dark .bg-slate-900\/50,
+html.dark .bg-slate-900\/60,
+html.dark .bg-slate-900\/70,
+html.dark .bg-black\/50,
+html.dark .bg-black\/60,
+body.dark .bg-slate-900\/50,
+body.dark .bg-black\/50 {
+  background-color: rgba(0, 0, 0, 0.75) !important;
 }
 
 /* Touch-friendly scrolling */
