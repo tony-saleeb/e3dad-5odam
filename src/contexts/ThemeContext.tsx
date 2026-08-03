@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 type Theme = 'light' | 'dark';
 
@@ -15,58 +15,63 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>('light');
 
-  const applyThemeToDOM = (t: Theme) => {
-    if (typeof document !== 'undefined') {
+  const applyThemeToDOM = useCallback((t: Theme) => {
+    if (typeof document === 'undefined') return;
+
+    requestAnimationFrame(() => {
       const root = document.documentElement;
       const body = document.body;
+
       if (t === 'dark') {
         root.classList.add('dark');
         body.classList.add('dark');
-        root.style.backgroundColor = '#0b0f19';
-        body.style.backgroundColor = '#0b0f19';
-        root.style.color = '#f8fafc';
-        body.style.color = '#f8fafc';
         root.setAttribute('data-theme', 'dark');
         body.setAttribute('data-theme', 'dark');
       } else {
         root.classList.remove('dark');
         body.classList.remove('dark');
-        root.style.backgroundColor = '#f8fafc';
-        body.style.backgroundColor = '#f8fafc';
-        root.style.color = '#0f172a';
-        body.style.color = '#0f172a';
         root.setAttribute('data-theme', 'light');
         body.setAttribute('data-theme', 'light');
       }
-    }
-  };
+    });
+  }, []);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('app-theme') as Theme | null;
     let initial: Theme = 'light';
+
     if (savedTheme === 'dark' || savedTheme === 'light') {
       initial = savedTheme;
     } else if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       initial = 'dark';
     }
+
     setThemeState(initial);
     applyThemeToDOM(initial);
-  }, []);
+  }, [applyThemeToDOM]);
 
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem('app-theme', newTheme);
+    try {
+      localStorage.setItem('app-theme', newTheme);
+    } catch (e) {
+      console.error('LocalStorage error:', e);
+    }
     applyThemeToDOM(newTheme);
-  };
+  }, [applyThemeToDOM]);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setThemeState((prevTheme) => {
       const nextTheme: Theme = prevTheme === 'light' ? 'dark' : 'light';
-      localStorage.setItem('app-theme', nextTheme);
+      try {
+        localStorage.setItem('app-theme', nextTheme);
+      } catch (e) {
+        console.error('LocalStorage error:', e);
+      }
       applyThemeToDOM(nextTheme);
       return nextTheme;
     });
-  };
+  }, [applyThemeToDOM]);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>

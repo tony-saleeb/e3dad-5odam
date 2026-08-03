@@ -2194,7 +2194,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {(() => {
-                  const churchLeaders = allowedUsers.filter(u => u.role === 'church_leader');
+                  const rawChurchLeaders = allowedUsers.filter(u => u.role === 'church_leader');
 
                   if (loading) {
                     return (
@@ -2204,7 +2204,7 @@ export default function AdminDashboard() {
                     );
                   }
 
-                  if (churchLeaders.length === 0) {
+                  if (rawChurchLeaders.length === 0) {
                     return (
                       <div className="text-center py-16 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
                         لا يوجد مسؤولو كنائس مسجلون بعد.
@@ -2212,36 +2212,73 @@ export default function AdminDashboard() {
                     );
                   }
 
+                  // Calculate booking metrics per church leader
+                  const processedLeaders = rawChurchLeaders.map(leader => {
+                    const leaderChurch = leader.churchName;
+                    const churchColor = getChurchColor(leaderChurch || '');
+                    const isExpanded = expandedChurchLeaderId === leader.id;
+
+                    const churchTeamLeaders = allowedUsers.filter(
+                      u => u.role === 'user' && (u.teamDetails?.churchName === leaderChurch || u.churchName === leaderChurch)
+                    );
+
+                    const teamLeadersWithBookingStatus = churchTeamLeaders.map(tl => {
+                      const hasBooking = allBookingsIncludingCancelled.some(
+                        b => b.requesterEmail === tl.email && b.status !== 'cancelled'
+                      );
+                      const booking = allBookingsIncludingCancelled.find(
+                        b => b.requesterEmail === tl.email && b.status !== 'cancelled'
+                      );
+                      return { ...tl, hasBooking, booking };
+                    });
+
+                    const bookedCount = teamLeadersWithBookingStatus.filter(tl => tl.hasBooking).length;
+                    const totalTeamLeaders = churchTeamLeaders.length;
+                    const bookingPercentage = totalTeamLeaders > 0 ? Math.round((bookedCount / totalTeamLeaders) * 100) : 0;
+                    const isComplete = totalTeamLeaders > 0 && bookedCount >= totalTeamLeaders;
+
+                    return {
+                      leader,
+                      leaderChurch,
+                      churchColor,
+                      isExpanded,
+                      churchTeamLeaders,
+                      teamLeadersWithBookingStatus,
+                      bookedCount,
+                      totalTeamLeaders,
+                      bookingPercentage,
+                      isComplete,
+                    };
+                  });
+
+                  // SORT: Complete (100%) leaders at the TOP, then by booking percentage descending
+                  processedLeaders.sort((a, b) => {
+                    if (a.isComplete && !b.isComplete) return -1;
+                    if (!a.isComplete && b.isComplete) return 1;
+                    return b.bookingPercentage - a.bookingPercentage;
+                  });
+
                   return (
                     <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide">
-                      {churchLeaders.map(leader => {
-                        const leaderChurch = leader.churchName;
-                        const churchColor = getChurchColor(leaderChurch || '');
-                        const isExpanded = expandedChurchLeaderId === leader.id;
-
-                        // Find team leaders (users) belonging to this church leader's church
-                        const churchTeamLeaders = allowedUsers.filter(
-                          u => u.role === 'user' && (u.teamDetails?.churchName === leaderChurch || u.churchName === leaderChurch)
-                        );
-
-                        // Check which team leaders have bookings
-                        const teamLeadersWithBookingStatus = churchTeamLeaders.map(tl => {
-                          const hasBooking = allBookingsIncludingCancelled.some(
-                            b => b.requesterEmail === tl.email && b.status !== 'cancelled'
-                          );
-                          const booking = allBookingsIncludingCancelled.find(
-                            b => b.requesterEmail === tl.email && b.status !== 'cancelled'
-                          );
-                          return { ...tl, hasBooking, booking };
-                        });
-
-                        const bookedCount = teamLeadersWithBookingStatus.filter(tl => tl.hasBooking).length;
-                        const totalTeamLeaders = churchTeamLeaders.length;
-
+                      {processedLeaders.map(({
+                        leader,
+                        leaderChurch,
+                        churchColor,
+                        isExpanded,
+                        teamLeadersWithBookingStatus,
+                        bookedCount,
+                        totalTeamLeaders,
+                        bookingPercentage,
+                        isComplete,
+                      }) => {
                         return (
                           <div
                             key={leader.id}
-                            className="bg-white border border-slate-150/70 rounded-2xl overflow-hidden hover:shadow-xs transition-all duration-200"
+                            className={`rounded-2xl overflow-hidden border transition-all duration-300 ${
+                              isComplete
+                                ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700/60 shadow-xs shadow-emerald-500/5 ring-1 ring-emerald-400/30'
+                                : 'bg-white border-slate-150/70 hover:shadow-xs'
+                            }`}
                           >
                             {/* Church Leader Card Header */}
                             <button
@@ -2257,12 +2294,22 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="font-black text-slate-800 text-sm leading-tight truncate">{leader.name}</p>
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200/50 leading-none shrink-0">
+                                    <p className={`font-black text-sm leading-tight truncate ${isComplete ? 'text-emerald-950 dark:text-emerald-100' : 'text-slate-800'}`}>
+                                      {leader.name}
+                                    </p>
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100/70 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300/60 leading-none shrink-0">
                                       مسؤول كنيسة
                                     </span>
+                                    {isComplete && (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-2xs leading-none shrink-0">
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        <span>مكتمل الحجز 100%</span>
+                                      </span>
+                                    )}
                                   </div>
-                                  <p className="text-slate-450 text-xs font-semibold leading-normal py-0.5 truncate mt-0.5" dir="ltr">{leader.email}</p>
+                                  <p className="text-slate-450 dark:text-slate-400 text-xs font-semibold leading-normal py-0.5 truncate mt-0.5" dir="ltr">{leader.email}</p>
                                   <div className="flex items-center gap-2 mt-1.5">
                                     {leaderChurch ? (
                                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-slate-200/60 shadow-3xs ${churchColor.badge}`}>
@@ -2280,12 +2327,22 @@ export default function AdminDashboard() {
 
                               <div className="flex items-center gap-3 shrink-0 border-t border-slate-100/50 pt-2.5 sm:pt-0 sm:border-0">
                                 {/* Booking Progress Chip */}
-                                <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-center shadow-3xs min-w-[70px]">
-                                  <p className="text-[9px] font-bold text-slate-450 uppercase leading-none">حجزوا</p>
+                                <div className={`px-3.5 py-2 rounded-xl text-center shadow-3xs min-w-[75px] border ${
+                                  isComplete
+                                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-emerald-600/20'
+                                    : 'bg-slate-50 border-slate-200'
+                                }`}>
+                                  <p className={`text-[9px] font-bold uppercase leading-none ${isComplete ? 'text-emerald-100' : 'text-slate-450'}`}>
+                                    {isComplete ? 'مكتمل' : 'حجزوا'}
+                                  </p>
                                   <p className="text-xs font-black mt-0.5 leading-none">
-                                    <span className={bookedCount > 0 ? 'text-emerald-600' : 'text-slate-400'}>{bookedCount}</span>
-                                    <span className="text-slate-300"> / </span>
-                                    <span className="text-slate-600">{totalTeamLeaders}</span>
+                                    <span className={isComplete ? 'text-white' : bookedCount > 0 ? 'text-emerald-600' : 'text-slate-400'}>
+                                      {bookedCount}
+                                    </span>
+                                    <span className={isComplete ? 'text-emerald-200' : 'text-slate-300'}> / </span>
+                                    <span className={isComplete ? 'text-white' : 'text-slate-600'}>
+                                      {totalTeamLeaders}
+                                    </span>
                                   </p>
                                 </div>
                                 <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2307,12 +2364,12 @@ export default function AdminDashboard() {
                                     <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-3xs">
                                       <div className="flex items-center justify-between mb-2">
                                         <span className="text-[11px] font-bold text-slate-500">نسبة الحجز</span>
-                                        <span className="text-[11px] font-black text-slate-700">{totalTeamLeaders > 0 ? Math.round((bookedCount / totalTeamLeaders) * 100) : 0}%</span>
+                                        <span className="text-[11px] font-black text-emerald-700">{bookingPercentage}%</span>
                                       </div>
                                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                                         <div
                                           className="h-full rounded-full transition-all duration-700"
-                                          style={{ width: `${totalTeamLeaders > 0 ? (bookedCount / totalTeamLeaders) * 100 : 0}%`, backgroundColor: churchColor.hex }}
+                                          style={{ width: `${bookingPercentage}%`, backgroundColor: isComplete ? '#059669' : churchColor.hex }}
                                         />
                                       </div>
                                     </div>
