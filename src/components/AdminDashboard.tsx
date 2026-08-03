@@ -46,13 +46,14 @@ export default function AdminDashboard() {
   const {
     bookings,
     allBookingsIncludingCancelled,
-    restoreBooking
+    restoreBooking,
+    deleteBooking
   } = useBookings();
   const { settings, updateSettings } = useSettings();
 
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'archive' | 'leaders' | 'leaderboard' | 'analytics'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'bookings' | 'evaluations' | 'settings' | 'archive' | 'leaders' | 'leaderboard' | 'analytics' | 'db_records' | 'church_leaders'>('users');
   const { toast } = useToast();
   const [importing, setImporting] = useState(false);
   const [importRole, setImportRole] = useState<'user' | 'admin' | 'servant' | 'church_leader'>('user');
@@ -76,6 +77,10 @@ export default function AdminDashboard() {
   // Confirmation dialog state
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<string | null>(null);
   const [confirmRestoreBooking, setConfirmRestoreBooking] = useState<string | null>(null);
+  const [confirmHardDeleteBooking, setConfirmHardDeleteBooking] = useState<string | null>(null);
+  const [hardDeletingBookingId, setHardDeletingBookingId] = useState<string | null>(null);
+  const [dbRecordsFilter, setDbRecordsFilter] = useState<'all' | 'active' | 'cancelled'>('all');
+  const [expandedChurchLeaderId, setExpandedChurchLeaderId] = useState<string | null>(null);
 
 
 
@@ -280,6 +285,20 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleHardDeleteBooking = async (bookingId: string) => {
+    setHardDeletingBookingId(bookingId);
+    try {
+      await deleteDoc(doc(db, 'bookings', bookingId));
+      toast.success('تم حذف السجل نهائياً من قاعدة البيانات');
+    } catch (err) {
+      console.error('Error hard-deleting booking:', err);
+      toast.error('حدث خطأ أثناء حذف السجل');
+    } finally {
+      setHardDeletingBookingId(null);
+      setConfirmHardDeleteBooking(null);
+    }
+  };
+
   const handleUpdateChurch = async (userId: string, churchName: string) => {
     try {
       await setDoc(doc(db, 'allowed_users', userId), { churchName }, { merge: true });
@@ -437,6 +456,24 @@ export default function AdminDashboard() {
                       icon: (
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'db_records', 
+                      label: 'سجلات قاعدة البيانات',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                        </svg>
+                      )
+                    },
+                    { 
+                      id: 'church_leaders', 
+                      label: 'مسؤولو الكنائس',
+                      icon: (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                       )
                     },
@@ -1881,6 +1918,306 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {/* DB RECORDS TAB */}
+            {activeTab === 'db_records' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50/50 p-5 rounded-3xl border border-slate-100 gap-4">
+                  <div>
+                    <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+                      <span className="w-1.5 h-4 rounded-full bg-slate-700 inline-block" />
+                      سجلات قاعدة البيانات
+                    </h3>
+                    <p className="text-xs text-slate-400 font-bold mt-1">
+                      جميع سجلات الحجوزات في قاعدة البيانات (نشطة وملغاة). يمكنك حذف أي سجل نهائياً.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(['all', 'active', 'cancelled'] as const).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => setDbRecordsFilter(f)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                          dbRecordsFilter === f
+                            ? 'bg-slate-800 text-white shadow-md shadow-slate-800/15'
+                            : 'bg-white border border-slate-200/60 text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        {f === 'all' ? `الكل (${allBookingsIncludingCancelled.length})` : f === 'active' ? `نشط (${allBookingsIncludingCancelled.filter(b => b.status !== 'cancelled').length})` : `ملغى (${allBookingsIncludingCancelled.filter(b => b.status === 'cancelled').length})`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {(() => {
+                  const filtered = dbRecordsFilter === 'all'
+                    ? allBookingsIncludingCancelled
+                    : dbRecordsFilter === 'active'
+                      ? allBookingsIncludingCancelled.filter(b => b.status !== 'cancelled')
+                      : allBookingsIncludingCancelled.filter(b => b.status === 'cancelled');
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-16 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
+                        لا توجد سجلات مطابقة.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide">
+                      {filtered.map(b => {
+                        const isCancelled = b.status === 'cancelled';
+                        const churchColor = getChurchColor(b.churchName || '');
+                        const isDeleting = hardDeletingBookingId === b.id;
+
+                        return (
+                          <div
+                            key={b.id}
+                            className={`bg-white border rounded-2xl p-4 transition-all duration-200 hover:shadow-sm ${
+                              isCancelled ? 'border-rose-200/60 bg-rose-50/20' : 'border-slate-100 hover:border-slate-200/80'
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              {/* Record Info */}
+                              <div className="flex items-start gap-3 min-w-0 flex-1">
+                                <span
+                                  className="w-1.5 h-10 rounded-full shrink-0 mt-0.5"
+                                  style={{ background: `linear-gradient(to bottom, ${churchColor.hex}, ${churchColor.hex}99)` }}
+                                />
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-black text-slate-800 text-sm leading-tight truncate">{b.churchName || 'غير محدد'}</p>
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border leading-none shrink-0 ${
+                                      isCancelled
+                                        ? 'bg-rose-50 text-rose-700 border-rose-200/50'
+                                        : b.status === 'approved'
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50'
+                                          : 'bg-amber-50 text-amber-700 border-amber-200/50'
+                                    }`}>
+                                      {isCancelled ? 'ملغى' : b.status === 'approved' ? 'نشط' : 'معلق'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 font-bold">
+                                    <span className="text-slate-400">المشروع:</span> {b.title} <span className="text-slate-300">|</span> <span className="text-slate-400">الفريق:</span> {b.teamName}
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
+                                    <span>📅 {b.date}</span>
+                                    <span dir="ltr">🕐 {b.startTime} - {b.endTime}</span>
+                                    <span>👤 {b.requesterName}</span>
+                                    <span className="text-slate-300" dir="ltr">ID: {b.id}</span>
+                                  </div>
+                                  {isCancelled && b.cancelledAt && (
+                                    <p className="text-[10px] text-rose-400 font-bold">
+                                      🗑️ ألغي بواسطة: {b.cancelledBy || '—'} في {new Date(b.cancelledAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Delete Button */}
+                              <button
+                                onClick={() => setConfirmHardDeleteBooking(b.id)}
+                                disabled={isDeleting}
+                                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border border-rose-200/50 hover:border-rose-300 font-bold text-xs rounded-xl transition-all cursor-pointer active:scale-95 disabled:opacity-50 shrink-0 flex items-center gap-1.5"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                {isDeleting ? 'جاري...' : 'حذف نهائي'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* CHURCH LEADERS TAB */}
+            {activeTab === 'church_leaders' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="bg-slate-50/50 p-5 rounded-3xl border border-slate-100">
+                  <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+                    <span className="w-1.5 h-4 rounded-full bg-emerald-600 inline-block" />
+                    مسؤولو الكنائس
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-1">
+                    عرض مسؤولي الكنائس وتفاصيل كنائسهم وحالة حجز فرقهم.
+                  </p>
+                </div>
+
+                {(() => {
+                  const churchLeaders = allowedUsers.filter(u => u.role === 'church_leader');
+
+                  if (loading) {
+                    return (
+                      <div className="text-center py-8">
+                        <div className="w-8 h-8 border-4 border-slate-800 border-t-transparent rounded-full animate-spin mx-auto" />
+                      </div>
+                    );
+                  }
+
+                  if (churchLeaders.length === 0) {
+                    return (
+                      <div className="text-center py-16 bg-slate-50/20 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold text-sm">
+                        لا يوجد مسؤولو كنائس مسجلون بعد.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 scrollbar-hide">
+                      {churchLeaders.map(leader => {
+                        const leaderChurch = leader.churchName;
+                        const churchColor = getChurchColor(leaderChurch || '');
+                        const isExpanded = expandedChurchLeaderId === leader.id;
+
+                        // Find team leaders (users) belonging to this church leader's church
+                        const churchTeamLeaders = allowedUsers.filter(
+                          u => u.role === 'user' && (u.teamDetails?.churchName === leaderChurch || u.churchName === leaderChurch)
+                        );
+
+                        // Check which team leaders have bookings
+                        const teamLeadersWithBookingStatus = churchTeamLeaders.map(tl => {
+                          const hasBooking = allBookingsIncludingCancelled.some(
+                            b => b.requesterEmail === tl.email && b.status !== 'cancelled'
+                          );
+                          const booking = allBookingsIncludingCancelled.find(
+                            b => b.requesterEmail === tl.email && b.status !== 'cancelled'
+                          );
+                          return { ...tl, hasBooking, booking };
+                        });
+
+                        const bookedCount = teamLeadersWithBookingStatus.filter(tl => tl.hasBooking).length;
+                        const totalTeamLeaders = churchTeamLeaders.length;
+
+                        return (
+                          <div
+                            key={leader.id}
+                            className="bg-white border border-slate-150/70 rounded-2xl overflow-hidden hover:shadow-xs transition-all duration-200"
+                          >
+                            {/* Church Leader Card Header */}
+                            <button
+                              onClick={() => setExpandedChurchLeaderId(isExpanded ? null : leader.id)}
+                              className="w-full p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer text-right"
+                            >
+                              <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                                <div
+                                  className="w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-sm shrink-0"
+                                  style={{ backgroundColor: churchColor.hex || '#10B981' }}
+                                >
+                                  {leader.name[0]}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-black text-slate-800 text-sm leading-tight truncate">{leader.name}</p>
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200/50 leading-none shrink-0">
+                                      مسؤول كنيسة
+                                    </span>
+                                  </div>
+                                  <p className="text-slate-450 text-xs font-semibold leading-none truncate mt-1" dir="ltr">{leader.email}</p>
+                                  <div className="flex items-center gap-2 mt-1.5">
+                                    {leaderChurch ? (
+                                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-slate-200/60 shadow-3xs ${churchColor.badge}`}>
+                                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: churchColor.hex }} />
+                                        ⛪ {leaderChurch}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/50">
+                                        ⚠️ لم يتم تحديد الكنيسة
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 shrink-0 border-t border-slate-100/50 pt-2.5 sm:pt-0 sm:border-0">
+                                {/* Booking Progress Chip */}
+                                <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-center shadow-3xs min-w-[70px]">
+                                  <p className="text-[9px] font-bold text-slate-450 uppercase leading-none">حجزوا</p>
+                                  <p className="text-xs font-black mt-0.5 leading-none">
+                                    <span className={bookedCount > 0 ? 'text-emerald-600' : 'text-slate-400'}>{bookedCount}</span>
+                                    <span className="text-slate-300"> / </span>
+                                    <span className="text-slate-600">{totalTeamLeaders}</span>
+                                  </p>
+                                </div>
+                                <svg className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                            </button>
+
+                            {/* Expanded: Team Leaders List */}
+                            {isExpanded && (
+                              <div className="bg-slate-50/40 border-t border-slate-100 p-4 space-y-3 animate-fade-in">
+                                {!leaderChurch ? (
+                                  <p className="text-center text-sm text-amber-600 font-bold py-4">لا يمكن عرض الفرق — لم يتم تحديد الكنيسة لهذا المسؤول.</p>
+                                ) : totalTeamLeaders === 0 ? (
+                                  <p className="text-center text-slate-400 text-xs font-bold py-6">لا يوجد قادة فرق مسجلون في هذه الكنيسة بعد.</p>
+                                ) : (
+                                  <>
+                                    {/* Progress Bar */}
+                                    <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-3xs">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] font-bold text-slate-500">نسبة الحجز</span>
+                                        <span className="text-[11px] font-black text-slate-700">{totalTeamLeaders > 0 ? Math.round((bookedCount / totalTeamLeaders) * 100) : 0}%</span>
+                                      </div>
+                                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full rounded-full transition-all duration-700"
+                                          style={{ width: `${totalTeamLeaders > 0 ? (bookedCount / totalTeamLeaders) * 100 : 0}%`, backgroundColor: churchColor.hex }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* Team Leaders List */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      {teamLeadersWithBookingStatus.map(tl => (
+                                        <div
+                                          key={tl.id}
+                                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                                            tl.hasBooking
+                                              ? 'bg-emerald-50/40 border-emerald-200/50'
+                                              : 'bg-white border-slate-100'
+                                          }`}
+                                        >
+                                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                                            tl.hasBooking
+                                              ? 'bg-emerald-500 text-white'
+                                              : 'bg-slate-200 text-slate-500'
+                                          }`}>
+                                            {tl.hasBooking ? '✓' : tl.name[0]}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-black text-slate-800 truncate">{tl.name}</p>
+                                            <p className="text-[10px] text-slate-400 font-semibold truncate" dir="ltr">{tl.email}</p>
+                                            {tl.hasBooking && tl.booking && (
+                                              <p className="text-[10px] font-bold text-emerald-600 mt-0.5">
+                                                📅 {tl.booking.date} • {tl.booking.title}
+                                              </p>
+                                            )}
+                                            {!tl.hasBooking && (
+                                              <p className="text-[10px] font-bold text-slate-400 mt-0.5">لم يحجز بعد</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
           </div>
         </div>
       </div>
@@ -1940,6 +2277,29 @@ export default function AdminDashboard() {
                 className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-black text-sm hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer"
               >
                 نعم، استعد
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hard Delete Booking Confirmation Modal */}
+      {confirmHardDeleteBooking && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setConfirmHardDeleteBooking(null)} />
+          <div className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-scale-in">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-4 mx-auto">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h3 className="text-center text-lg font-black text-slate-800 mb-2">حذف نهائي من قاعدة البيانات</h3>
+            <p className="text-center text-sm text-slate-500 font-bold mb-2">هل أنت متأكد من رغبتك في حذف هذا السجل نهائياً؟</p>
+            <p className="text-center text-xs text-rose-500 font-bold mb-6">⚠️ هذا الإجراء لا يمكن التراجع عنه!</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmHardDeleteBooking(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all cursor-pointer">إلغاء</button>
+              <button onClick={() => handleHardDeleteBooking(confirmHardDeleteBooking)} className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-white font-black text-sm hover:bg-rose-700 transition-all shadow-md shadow-rose-600/20 active:scale-95 cursor-pointer">
+                {hardDeletingBookingId === confirmHardDeleteBooking ? 'جاري الحذف...' : 'نعم، احذف نهائياً'}
               </button>
             </div>
           </div>
