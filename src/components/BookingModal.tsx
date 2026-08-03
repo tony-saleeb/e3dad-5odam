@@ -225,16 +225,16 @@ export default function BookingModal() {
   const handleSubmit = async () => {
     if (!validateStep3()) return;
 
-    // 1. Local check (fast)
-    if (!isAdmin && user?.email && hasUserAlreadyBooked(user.email)) {
+    // 1. Local check (fast) — skip for admins and church leaders (they book on behalf of others)
+    if (!isAdmin && !isChurchLeader && user?.email && hasUserAlreadyBooked(user.email)) {
       toast.error('عذراً، يسمح لكل مستخدم بحجز واحد فقط.');
       return;
     }
 
     setSubmitting(true);
     try {
-      // 2. Server-side double check (secure via Firestore)
-      if (!isAdmin && user?.email) {
+      // 2. Server-side double check (secure via Firestore) — skip for admins and church leaders
+      if (!isAdmin && !isChurchLeader && user?.email) {
         try {
           const q = query(
             collection(db, 'bookings'),
