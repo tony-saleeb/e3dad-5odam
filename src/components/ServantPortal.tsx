@@ -68,22 +68,12 @@ export default function ServantPortal() {
   const [comments, setComments] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Initialize filter date to today's date or clamp to booking range
+  // Initialize filter date to today's date (used for fallback if needed, though we show all upcoming now)
   useEffect(() => {
     if (isServantPortalOpen) {
-      const { startMonth, endMonth } = settings.bookingRange;
-      const year = new Date().getFullYear();
-      const rangeStart = new Date(year, startMonth, 1);
-      const rangeEnd = new Date(year, endMonth + 1, 0);
-      const today = new Date();
-      
-      if (today >= rangeStart && today <= rangeEnd) {
-        setFilterDate(today.toISOString().split('T')[0]);
-      } else {
-        setFilterDate(rangeStart.toISOString().split('T')[0]);
-      }
+      setFilterDate(new Date().toISOString().split('T')[0]);
     }
-  }, [isServantPortalOpen, settings.bookingRange]);
+  }, [isServantPortalOpen]);
 
   // Escape key listener for accessibility
   useEffect(() => {
@@ -106,9 +96,9 @@ export default function ServantPortal() {
     if (!isServantPortalOpen || !filterDate) return;
 
     setLoadingEvals(true);
+    // Fetch all evaluations (since we show all upcoming dates now)
     const q = query(
-      collection(db, 'evaluations'),
-      where('date', '==', filterDate)
+      collection(db, 'evaluations')
     );
 
     const unsubscribe = onSnapshot(
@@ -167,10 +157,14 @@ export default function ServantPortal() {
 
   if (!isServantPortalOpen || !isServant || !user) return null;
 
-  // Filter approved bookings for the selected date
-  const filteredBookings = bookings.filter(
-    (b) => b.date === filterDate && b.status === 'approved'
-  );
+  // Show all upcoming approved bookings, sorted by closest date first
+  const todayStr = new Date().toISOString().split('T')[0];
+  const filteredBookings = bookings
+    .filter((b) => b.status === 'approved' && b.date >= todayStr)
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.startTime || '').localeCompare(b.startTime || '');
+    });
 
   // Calculate total max score possible
   const totalMaxScore = (evaluationFields || []).reduce((sum, f) => sum + f.maxMark, 0);
@@ -238,22 +232,11 @@ export default function ServantPortal() {
 
         {/* Filters / Date Selector */}
         <div className="p-6 border-b border-slate-100 bg-slate-50/20 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-slate-700">تاريخ التقييم:</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="pl-3 pr-10 py-2 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-bold shadow-sm"
-              />
-              <svg className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
+          <div className="flex items-center gap-3 hidden">
+            {/* Filter Date (Hidden but kept for internal logic if needed) */}
           </div>
-          <div className="text-xs text-slate-500 font-bold bg-indigo-50/50 border border-indigo-100 px-3 py-1.5 rounded-lg">
-            تم تقييم {evaluations.length} فريق من أصل {filteredBookings.length} فرق نشطة اليوم
+          <div className="text-xs text-slate-500 font-bold bg-indigo-50/50 border border-indigo-100 px-3 py-1.5 rounded-lg w-full text-center sm:w-auto">
+            يوجد {filteredBookings.length} فرق عمل قادمة لتقييمها
           </div>
         </div>
 
@@ -316,9 +299,9 @@ export default function ServantPortal() {
                           {hasEvaluated ? 'تم التقييم' : 'لم يتم التقييم'}
                         </span>
                         
-                        {/* Time slot indicator */}
+                        {/* Date indicator */}
                         <span className="text-xs font-bold text-slate-400 bg-slate-50 border border-slate-100 px-2 py-1 rounded-md" dir="ltr">
-                          {booking.startTime} - {booking.endTime}
+                          {booking.date} | {booking.startTime}
                         </span>
                       </div>
 

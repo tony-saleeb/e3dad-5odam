@@ -78,23 +78,42 @@ export default function WeeklySchedule() {
   const hasNavigatedRef = useRef(false);
 
   useEffect(() => {
-    if (bookingsLoading || !user || user.role !== 'user' || hasNavigatedRef.current) return;
+    if (bookingsLoading || !user || hasNavigatedRef.current) return;
 
-    const userBooking = bookings.find(
-      (b) => (b.requesterEmail || '').toLowerCase() === (user.email || '').toLowerCase() && b.status !== 'rejected'
-    );
+    let targetDateStr: string | null = null;
 
-    if (userBooking && userBooking.date) {
+    if (user.role === 'user') {
+      // Regular user: find their own booking
+      const userBooking = bookings.find(
+        (b) => (b.requesterEmail || '').toLowerCase() === (user.email || '').toLowerCase() && b.status !== 'rejected'
+      );
+      if (userBooking) targetDateStr = userBooking.date;
+    } else {
+      // Admin/Servant/Church Leader: find the closest upcoming booking
+      const todayStr = format(new Date(), "yyyy-MM-dd");
+      const upcomingBookings = bookings
+        .filter((b) => b.status === 'approved' && b.date >= todayStr)
+        .sort((a, b) => a.date.localeCompare(b.date));
+      
+      if (upcomingBookings.length > 0) {
+        targetDateStr = upcomingBookings[0].date;
+      }
+    }
+
+    if (targetDateStr) {
       try {
-        const bookingDate = new Date(userBooking.date);
+        const bookingDate = new Date(targetDateStr);
         if (!isNaN(bookingDate.getTime())) {
           setCurrentMonth(bookingDate);
-          setSelectedDate(userBooking.date);
+          setSelectedDate(targetDateStr);
           hasNavigatedRef.current = true;
         }
       } catch (err) {
         console.error('Failed to parse booking date for initial navigation:', err);
       }
+    } else {
+      // If no target date found, we just let it stay on the current month/day
+      hasNavigatedRef.current = true;
     }
   }, [user, bookings, bookingsLoading, setCurrentMonth, setSelectedDate]);
 
