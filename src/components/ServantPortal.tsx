@@ -9,6 +9,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { useToast } from './Toast';
 import { TeamEvaluation, Booking } from '@/types';
+import { getChurchColor } from '@/data/initialData';
 
 const getFieldIcon = (name: string) => {
   const n = name.toLowerCase();
@@ -67,23 +68,16 @@ export default function ServantPortal() {
   const [grades, setGrades] = useState<Record<string, number>>({});
   const [comments, setComments] = useState('');
   const [saving, setSaving] = useState(false);
+  
+  // Card Expansion State
+  const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
 
-  // Initialize filter date to today's date or clamp to booking range
+  // Initialize filter date to today's date (used for fallback if needed, though we show all upcoming now)
   useEffect(() => {
     if (isServantPortalOpen) {
-      const { startMonth, endMonth } = settings.bookingRange;
-      const year = new Date().getFullYear();
-      const rangeStart = new Date(year, startMonth, 1);
-      const rangeEnd = new Date(year, endMonth + 1, 0);
-      const today = new Date();
-      
-      if (today >= rangeStart && today <= rangeEnd) {
-        setFilterDate(today.toISOString().split('T')[0]);
-      } else {
-        setFilterDate(rangeStart.toISOString().split('T')[0]);
-      }
+      setFilterDate(new Date().toISOString().split('T')[0]);
     }
-  }, [isServantPortalOpen, settings.bookingRange]);
+  }, [isServantPortalOpen]);
 
   // Escape key listener for accessibility
   useEffect(() => {
@@ -106,9 +100,9 @@ export default function ServantPortal() {
     if (!isServantPortalOpen || !filterDate) return;
 
     setLoadingEvals(true);
+    // Fetch all evaluations (since we show all upcoming dates now)
     const q = query(
-      collection(db, 'evaluations'),
-      where('date', '==', filterDate)
+      collection(db, 'evaluations')
     );
 
     const unsubscribe = onSnapshot(
@@ -167,10 +161,14 @@ export default function ServantPortal() {
 
   if (!isServantPortalOpen || !isServant || !user) return null;
 
-  // Filter approved bookings for the selected date
-  const filteredBookings = bookings.filter(
-    (b) => b.date === filterDate && b.status === 'approved'
-  );
+  // Show all upcoming approved bookings, sorted by closest date first
+  const todayStr = new Date().toISOString().split('T')[0];
+  const filteredBookings = bookings
+    .filter((b) => b.status === 'approved' && b.date >= todayStr)
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.startTime || '').localeCompare(b.startTime || '');
+    });
 
   // Calculate total max score possible
   const totalMaxScore = (evaluationFields || []).reduce((sum, f) => sum + f.maxMark, 0);
@@ -238,22 +236,11 @@ export default function ServantPortal() {
 
         {/* Filters / Date Selector */}
         <div className="p-6 border-b border-slate-100 bg-slate-50/20 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-slate-700">تاريخ التقييم:</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="pl-3 pr-10 py-2 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-bold shadow-sm"
-              />
-              <svg className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
+          <div className="flex items-center gap-3 hidden">
+            {/* Filter Date (Hidden but kept for internal logic if needed) */}
           </div>
-          <div className="text-xs text-slate-500 font-bold bg-indigo-50/50 border border-indigo-100 px-3 py-1.5 rounded-lg">
-            تم تقييم {evaluations.length} فريق من أصل {filteredBookings.length} فرق نشطة اليوم
+          <div className="text-xs text-slate-500 font-bold bg-indigo-50/50 border border-indigo-100 px-3 py-1.5 rounded-lg w-full text-center sm:w-auto">
+            يوجد {filteredBookings.length} فرق عمل قادمة لتقييمها
           </div>
         </div>
 
@@ -295,106 +282,131 @@ export default function ServantPortal() {
                   ? Object.values(servantEval.grades).reduce((a, b) => a + b, 0)
                   : 0;
 
+                const churchColor = getChurchColor(booking.churchName);
+                const isExpanded = expandedBookingId === booking.id;
+
                 return (
                   <div
                     key={booking.id}
-                    className={`bg-white border rounded-2xl p-5 shadow-sm transition-all hover:shadow-md flex flex-col justify-between ${
-                      hasEvaluated ? 'border-emerald-200 bg-emerald-50/10' : 'border-slate-200'
+                    onClick={() => setExpandedBookingId(isExpanded ? null : booking.id)}
+                    className={`bg-white border rounded-2xl p-5 shadow-xs transition-all hover:shadow-sm flex flex-col justify-between cursor-pointer ${
+                      hasEvaluated ? 'border-emerald-200' : 'border-slate-200'
                     }`}
                   >
                     <div>
-                      {/* Badge / Status row */}
-                      <div className="flex items-center justify-between mb-3.5">
+                      {/* Top Row: Date Pill & Status Pill */}
+                      <div className="flex items-center justify-between mb-6">
+                        {/* Date Pill (Left) */}
+                        <div className="flex items-center gap-2 text-slate-600 bg-transparent border border-slate-300 px-3 py-1.5 rounded-lg">
+                          <span className="text-[12px] font-bold tracking-wide" dir="ltr">
+                            {booking.date} | {booking.startTime}
+                          </span>
+                          <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        
+                        {/* Status Pill (Right) */}
                         <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12px] font-bold ${
                             hasEvaluated
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-slate-100 text-slate-600'
+                              ? 'bg-emerald-50 text-emerald-800'
+                              : 'bg-slate-50 text-slate-600'
                           }`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${hasEvaluated ? 'bg-emerald-600' : 'bg-slate-500'}`} />
                           {hasEvaluated ? 'تم التقييم' : 'لم يتم التقييم'}
-                        </span>
-                        
-                        {/* Time slot indicator */}
-                        <span className="text-xs font-bold text-slate-400 bg-slate-50 border border-slate-100 px-2 py-1 rounded-md" dir="ltr">
-                          {booking.startTime} - {booking.endTime}
+                          <span className={`w-2 h-2 rounded-full ${hasEvaluated ? 'bg-emerald-600' : 'bg-slate-400'}`} />
                         </span>
                       </div>
 
-                      {/* Project info */}
-                      <h4 className="text-base font-bold text-slate-800 mb-1 leading-relaxed pb-0.5">{booking.title}</h4>
-                      <p className="text-xs text-slate-500 font-semibold mb-3 leading-relaxed">
-                        الكنيسة: <span className="text-slate-800 font-bold">{booking.churchName}</span>
-                      </p>
-
-                      {/* Team details */}
-                      <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-100 mb-4">
-                        <p className="text-xs text-slate-700 font-bold mb-2 leading-relaxed">
-                          اسم الفريق: <span className="text-indigo-600">{booking.teamName}</span>
-                        </p>
-                        <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                          الأعضاء: <span className="text-slate-700 font-bold">{booking.teamMembers?.map(m => m.name).join('، ') || 'لا يوجد أعضاء'}</span>
-                        </p>
-                      </div>
-
-                      {/* Servant evaluations list breakdown */}
-                      {(() => {
-                        const bookingEvaluations = evaluations.filter(e => e.bookingId === booking.id);
-                        if (bookingEvaluations.length === 0) return null;
-                        return (
-                          <div className="mt-2 mb-4 pt-3 border-t border-slate-100/70 space-y-2">
-                            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">تقييمات المقيمين ({bookingEvaluations.length}):</span>
-                            <div className="space-y-1.5 max-h-24 overflow-y-auto pr-0.5">
-                              {bookingEvaluations.map((ev) => {
-                                const score = Object.values(ev.grades).reduce((a, b) => a + b, 0);
-                                const isSelf = ev.servantEmail.toLowerCase() === user.email?.toLowerCase();
-                                return (
-                                  <div key={ev.id} className={`flex items-center justify-between text-xs p-2 rounded-xl border ${
-                                    isSelf 
-                                      ? 'bg-indigo-50/50 border-indigo-150 text-indigo-950 font-bold' 
-                                      : 'bg-slate-50/60 border-slate-150/70 text-slate-700'
-                                  }`}>
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      <span className="w-5 h-5 rounded-full bg-slate-200/70 text-slate-650 flex items-center justify-center text-[9px] font-black shrink-0">👤</span>
-                                      <span className="truncate">{ev.servantName} {isSelf && '(أنت)'}</span>
-                                    </div>
-                                    <span className="font-black shrink-0">{score} <span className="text-[10px] font-normal text-slate-400">/ {totalMaxScore}</span></span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex items-center justify-between gap-3 mt-2">
-                      {hasEvaluated ? (
+                      {/* Middle Row: Title & Church Block (Right Aligned) */}
+                      <div className="flex items-center justify-end gap-4 mb-2">
+                        {/* Text (Right Aligned) */}
                         <div className="text-right">
-                          <span className="text-xs text-slate-500 font-bold leading-none block">الدرجة المسجلة:</span>
-                          <span className="text-sm font-black text-emerald-700 block leading-tight">
-                            {currentScore} <span className="text-xs font-normal text-slate-400">/ {totalMaxScore}</span>
-                          </span>
+                          <h4 className="text-[16px] font-black text-slate-900 leading-snug">{booking.title}</h4>
+                          <p className="text-[12px] text-slate-500 font-bold mt-1">
+                            الكنيسة: <span className="text-slate-800">{booking.churchName}</span>
+                          </p>
                         </div>
-                      ) : (
-                        <span className="text-xs text-slate-400 font-semibold leading-relaxed">بانتظار رصد الدرجات...</span>
-                      )}
+                        {/* Colored Square (Far Right) */}
+                        <div
+                          className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-sm shrink-0"
+                          style={{ backgroundColor: churchColor.hex || '#EF4444' }} // Defaulting to red like the screenshot if not found
+                        >
+                          {booking.churchName ? booking.churchName[0] : '؟'}
+                        </div>
+                      </div>
 
-                      <button
-                        onClick={() => handleOpenGrading(booking)}
-                        disabled={hasEvaluated && !canEdit}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                          hasEvaluated && !canEdit
-                            ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
-                            : hasEvaluated && canEdit
-                              ? 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 hover:border-amber-300 shadow-xs cursor-pointer'
-                              : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.2)] cursor-pointer'
-                        }`}
-                      >
-                        {hasEvaluated && !canEdit ? 'مغلق (انتهى وقت التعديل)' : hasEvaluated && canEdit ? 'تعديل التقييم' : 'تقييم الفريق'}
-                      </button>
+                      {/* Expanded Content (Hidden by default) */}
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[800px] opacity-100 mt-5' : 'max-h-0 opacity-0'}`}>
+                        {/* Team details */}
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-4 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                          <p className="text-[12px] text-slate-600 font-bold leading-tight">
+                            اسم الفريق: <span className="text-indigo-600 font-black">{booking.teamName}</span>
+                          </p>
+                          <p className="text-[11px] text-slate-500 leading-relaxed font-bold">
+                            الأعضاء: <span className="text-slate-700">{booking.teamMembers?.map(m => m.name).join('، ') || 'لا يوجد أعضاء'}</span>
+                          </p>
+                        </div>
+
+                        {/* Servant evaluations list breakdown */}
+                        {(() => {
+                          const bookingEvaluations = evaluations.filter(e => e.bookingId === booking.id);
+                          if (bookingEvaluations.length === 0) return null;
+                          return (
+                            <div className="mt-2 mb-4 pt-4 border-t border-slate-100/70 space-y-2" onClick={(e) => e.stopPropagation()}>
+                              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">التقييمات المسجلة ({bookingEvaluations.length}):</span>
+                              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                                {bookingEvaluations.map((ev) => {
+                                  const score = Object.values(ev.grades).reduce((a, b) => a + b, 0);
+                                  const isSelf = ev.servantEmail.toLowerCase() === user.email?.toLowerCase();
+                                  return (
+                                    <div key={ev.id} className={`flex items-center justify-between text-[11px] p-2.5 rounded-xl border ${
+                                      isSelf 
+                                        ? 'bg-indigo-50/50 border-indigo-150 text-indigo-950 font-bold' 
+                                        : 'bg-slate-50/60 border-slate-150/70 text-slate-700 font-bold'
+                                    }`}>
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className="w-5 h-5 rounded-full bg-slate-200/70 text-slate-650 flex items-center justify-center text-[10px] font-black shrink-0">👤</span>
+                                        <span className="truncate">{ev.servantName} {isSelf && '(أنت)'}</span>
+                                      </div>
+                                      <span className="font-black shrink-0 text-sm">{score} <span className="text-[10px] font-normal text-slate-400">/ {totalMaxScore}</span></span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Action buttons */}
+                        <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                          {hasEvaluated ? (
+                            <div className="text-right">
+                              <span className="text-[11px] text-slate-500 font-bold leading-none block mb-1">الدرجة المسجلة</span>
+                              <span className="text-base font-black text-emerald-700 block leading-none">
+                                {currentScore} <span className="text-[11px] font-bold text-slate-400">/ {totalMaxScore}</span>
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[12px] text-slate-400 font-bold">بانتظار رصد الدرجات...</span>
+                          )}
+
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleOpenGrading(booking); }}
+                            disabled={hasEvaluated && !canEdit}
+                            className={`px-6 py-2.5 rounded-xl text-[12px] font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                              hasEvaluated && !canEdit
+                                ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
+                                : hasEvaluated && canEdit
+                                  ? 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 hover:border-amber-300 shadow-sm cursor-pointer'
+                                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.2)] cursor-pointer'
+                            }`}
+                          >
+                            {hasEvaluated && !canEdit ? 'انتهى الوقت' : hasEvaluated && canEdit ? 'تعديل التقييم' : 'تقييم الفريق'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
