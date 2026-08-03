@@ -19,6 +19,7 @@ const defaultSettings: AppSettings = {
     startMonth: 6, // July
     endMonth: 8,   // September
     allowedDays: ALLOWED_DAYS,
+    excludedDates: [],
   },
   teamMemberLimits: {
     min: 3,
@@ -78,9 +79,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       doc(db, 'settings', 'booking_range'),
       (snap) => {
         const val = snap.exists() ? snap.data().value : defaultSettings.bookingRange;
+        const normalizedRange = val ? {
+          ...val,
+          excludedDates: Array.isArray(val.excludedDates) ? val.excludedDates : []
+        } : defaultSettings.bookingRange;
         setSettings(prev => ({
           ...prev,
-          bookingRange: val || defaultSettings.bookingRange,
+          bookingRange: normalizedRange,
         }));
         markLoaded('booking_range');
       },

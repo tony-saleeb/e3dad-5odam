@@ -33,7 +33,7 @@ export default function MiniCalendar() {
   const { currentMonth, setCurrentMonth, selectedDate, setSelectedDate } = useSchedulerStore();
 
   const { timePeriods, bookingRange } = settings;
-  const { startMonth, endMonth, allowedDays } = bookingRange;
+  const { startMonth, endMonth, allowedDays, excludedDates = [] } = bookingRange;
   
   // View mode: 'days' or 'months'
   const [viewMode, setViewMode] = useState<'days' | 'months'>('days');
@@ -111,7 +111,9 @@ export default function MiniCalendar() {
   const isDayDisabled = (day: Date) => {
     const dayOfWeek = day.getDay();
     const dayStart = startOfDay(day);
+    const dateStr = format(day, 'yyyy-MM-dd');
     if (!allowedDays.includes(dayOfWeek)) return true;
+    if ((excludedDates || []).includes(dateStr)) return true;
     if (isBefore(dayStart, startOfDay(dateRange.start))) return true;
     if (isAfter(dayStart, startOfDay(dateRange.end))) return true;
     return false;

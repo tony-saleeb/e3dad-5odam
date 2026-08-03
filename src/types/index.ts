@@ -76,6 +76,7 @@ export interface AppSettings {
     startMonth: number; // 0-indexed
     endMonth: number;   // 0-indexed
     allowedDays: number[]; // [0,1,2,3]
+    excludedDates?: string[]; // YYYY-MM-DD strings for specific excluded dates
   };
   teamMemberLimits: {
     min: number;
