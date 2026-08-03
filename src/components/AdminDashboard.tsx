@@ -1466,7 +1466,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-100 shadow-xs gap-4">
                     <div className="flex-1">
                       <p className="text-sm font-bold text-slate-800">السماح للمستخدمين بحذف/إلغاء حجوزاتهم</p>
-                      <p className="text-xs text-slate-400 mt-1">عند تفعيل هذا الخيار، سيتمكن قادة الفرق من إلغاء أو حذف حجوزاتهم. وإذا تم تعطيله، لن تظهر لهم أزرار الحذف (المسؤول يمكنه دائماً إلغاء الحجز).</p>
+                      <p className="text-xs text-slate-400 mt-1">عند تفعيل هذا الخيار، سيتمكن مسؤولو الكنائس من إلغاء أو حذف حجوزاتهم. وإذا تم تعطيله، لن تظهر لهم أزرار الحذف (المسؤول يمكنه دائماً إلغاء الحجز).</p>
                     </div>
                     <button
                       dir="ltr"
