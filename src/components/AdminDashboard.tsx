@@ -280,6 +280,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleUpdateChurch = async (userId: string, churchName: string) => {
+    try {
+      await setDoc(doc(db, 'allowed_users', userId), { churchName }, { merge: true });
+      setAllowedUsers(prev => prev.map(u => u.id === userId ? { ...u, churchName } : u));
+      toast.success('تم تحديث كنيسة المستخدم بنجاح');
+    } catch (err) {
+      console.error('Error updating user church:', err);
+      toast.error('حدث خطأ أثناء تحديث الكنيسة');
+    }
+  };
+
   const handleExportCSV = async () => {
     try {
       const auth = getAuth();
@@ -542,62 +553,96 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-2.5 max-h-[35vh] overflow-y-auto pr-1 scrollbar-hide">
-                    {allowedUsers.filter(u => userRoleFilter === 'all' || u.role === userRoleFilter).map(u => (
-                      <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 sm:px-4 sm:py-3 rounded-2xl transition-all duration-200 hover:shadow-2xs gap-3.5 sm:gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm shrink-0 ${
-                            u.role === 'admin' 
-                              ? 'bg-slate-700 text-white shadow-slate-700/10' 
-                              : u.role === 'servant'
-                                ? 'bg-indigo-600 text-white shadow-indigo-600/10'
-                                : u.role === 'church_leader'
-                                  ? 'bg-emerald-600 text-white shadow-emerald-600/10'
-                                  : 'bg-slate-500 text-white shadow-slate-500/10'
-                          }`}>
-                            {u.name[0]}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{u.name}</p>
-                              {/* Mobile-only Role Badge */}
-                              <span className={`inline-block sm:hidden px-2 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
-                                u.role === 'admin' 
-                                  ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
-                                  : u.role === 'servant'
-                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
-                                    : u.role === 'church_leader'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
-                                      : 'bg-slate-50 text-slate-650 border-slate-150/60'
-                              }`}>
-                                {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
-                              </span>
+                    {allowedUsers.filter(u => userRoleFilter === 'all' || u.role === userRoleFilter).map(u => {
+                      const userChurch = u.churchName || u.teamDetails?.churchName;
+                      const churchColor = getChurchColor(userChurch || '');
+
+                      return (
+                        <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 sm:px-4 sm:py-3 rounded-2xl transition-all duration-200 hover:shadow-2xs gap-3.5 sm:gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shadow-sm shrink-0 ${
+                              u.role === 'admin' 
+                                ? 'bg-slate-700 text-white shadow-slate-700/10' 
+                                : u.role === 'servant'
+                                  ? 'bg-indigo-600 text-white shadow-indigo-600/10'
+                                  : u.role === 'church_leader'
+                                    ? 'bg-emerald-600 text-white shadow-emerald-600/10'
+                                    : 'bg-slate-500 text-white shadow-slate-500/10'
+                            }`}>
+                              {u.name[0]}
                             </div>
-                            <p className="text-slate-450 text-xs font-semibold leading-normal truncate" dir="ltr">{u.email}</p>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{u.name}</p>
+                                {/* Mobile-only Role Badge */}
+                                <span className={`inline-block sm:hidden px-2 py-0.5 rounded-full text-[9px] font-black border shrink-0 ${
+                                  u.role === 'admin' 
+                                    ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
+                                    : u.role === 'servant'
+                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
+                                      : u.role === 'church_leader'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
+                                        : 'bg-slate-50 text-slate-650 border-slate-150/60'
+                                }`}>
+                                  {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
+                                </span>
+                              </div>
+                              <p className="text-slate-450 text-xs font-semibold leading-normal truncate" dir="ltr">{u.email}</p>
+
+                              {/* Church Indicator & Selector */}
+                              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                                <span className="text-[11px] font-bold text-slate-400">الكنيسة:</span>
+                                <div className="relative inline-flex items-center">
+                                  {userChurch && (
+                                    <span
+                                      className="w-2 h-2 rounded-full absolute right-2.5 pointer-events-none z-10"
+                                      style={{ backgroundColor: churchColor.hex }}
+                                    />
+                                  )}
+                                  <select
+                                    value={userChurch || ''}
+                                    onChange={(e) => handleUpdateChurch(u.id, e.target.value)}
+                                    className={`py-1 rounded-xl text-[11px] font-black bg-white border text-slate-700 focus:outline-none focus:border-slate-800 cursor-pointer shadow-3xs transition-all hover:border-slate-300 ${
+                                      userChurch
+                                        ? 'pr-6 pl-3 border-slate-200'
+                                        : 'px-3 border-amber-300 bg-amber-50/50 text-amber-800'
+                                    }`}
+                                  >
+                                    <option value="">-- اختر الكنيسة --</option>
+                                    {churches.map((c) => (
+                                      <option key={c} value={c}>
+                                        {c}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-slate-100/50 pt-2.5 sm:pt-0 sm:border-0">
+                            {/* Desktop-only Role Badge */}
+                            <span className={`hidden sm:inline-block px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 ${
+                              u.role === 'admin' 
+                                ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
+                                : u.role === 'servant'
+                                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
+                                  : u.role === 'church_leader'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
+                                    : 'bg-slate-50 text-slate-650 border-slate-150/60'
+                            }`}>
+                              {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
+                            </span>
+                            <button
+                              onClick={() => setConfirmDeleteUser(u.id)}
+                              disabled={removingId === u.id}
+                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center active:scale-95 shadow-2xs"
+                            >
+                              {removingId === u.id ? 'جاري الحذف...' : 'حذف'}
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-slate-100/50 pt-2.5 sm:pt-0 sm:border-0">
-                          {/* Desktop-only Role Badge */}
-                          <span className={`hidden sm:inline-block px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0 ${
-                            u.role === 'admin' 
-                              ? 'bg-slate-100 text-slate-700 border-slate-200/50' 
-                              : u.role === 'servant'
-                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200/40'
-                                : u.role === 'church_leader'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/40'
-                                  : 'bg-slate-50 text-slate-650 border-slate-150/60'
-                          }`}>
-                            {u.role === 'admin' ? 'مسؤول' : u.role === 'servant' ? 'خادم مقيم' : u.role === 'church_leader' ? 'مسؤول كنيسة' : 'قائد فريق'}
-                          </span>
-                          <button
-                            onClick={() => setConfirmDeleteUser(u.id)}
-                            disabled={removingId === u.id}
-                            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 text-xs font-bold px-4 py-2 sm:px-3 sm:py-1.5 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center active:scale-95 shadow-2xs"
-                          >
-                            {removingId === u.id ? 'جاري الحذف...' : 'حذف'}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </>
