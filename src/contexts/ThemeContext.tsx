@@ -48,6 +48,33 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setThemeState(initial);
     applyThemeToDOM(initial);
+
+    // Listen for OS system theme changes in real-time if no manual preference is stored
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+        const stored = localStorage.getItem('app-theme');
+        if (!stored) {
+          const newSystemTheme: Theme = e.matches ? 'dark' : 'light';
+          setThemeState(newSystemTheme);
+          applyThemeToDOM(newSystemTheme);
+        }
+      };
+
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', handleSystemThemeChange);
+      } else {
+        mediaQuery.addListener(handleSystemThemeChange);
+      }
+
+      return () => {
+        if (mediaQuery.removeEventListener) {
+          mediaQuery.removeEventListener('change', handleSystemThemeChange);
+        } else {
+          mediaQuery.removeListener(handleSystemThemeChange);
+        }
+      };
+    }
   }, [applyThemeToDOM]);
 
   const setTheme = useCallback((newTheme: Theme) => {
