@@ -2276,8 +2276,8 @@ export default function AdminDashboard() {
                             key={leader.id}
                             className={`rounded-2xl overflow-hidden border transition-all duration-300 ${
                               isComplete
-                                ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700/60 shadow-xs shadow-emerald-500/5 ring-1 ring-emerald-400/30'
-                                : 'bg-white border-slate-150/70 hover:shadow-xs'
+                                ? 'bg-emerald-50/90 border-emerald-300/80 dark:bg-emerald-950/40 dark:border-emerald-800/60 shadow-xs shadow-emerald-500/5 ring-1 ring-emerald-400/30'
+                                : 'bg-white dark:bg-slate-900 border-slate-150/70 dark:border-slate-800 hover:shadow-xs'
                             }`}
                           >
                             {/* Church Leader Card Header */}
@@ -2294,7 +2294,7 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <p className={`font-black text-sm leading-tight truncate ${isComplete ? 'text-emerald-950 dark:text-emerald-100' : 'text-slate-800'}`}>
+                                    <p className={`font-black text-sm leading-tight truncate ${isComplete ? 'text-emerald-950 dark:text-emerald-100' : 'text-slate-800 dark:text-slate-100'}`}>
                                       {leader.name}
                                     </p>
                                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100/70 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300/60 leading-none shrink-0">
@@ -2309,7 +2309,7 @@ export default function AdminDashboard() {
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-slate-450 dark:text-slate-400 text-xs font-semibold leading-normal py-0.5 truncate mt-0.5" dir="ltr">{leader.email}</p>
+                                  <p className={`text-xs font-semibold leading-normal py-0.5 truncate mt-0.5 ${isComplete ? 'text-emerald-800/80 dark:text-emerald-300/80' : 'text-slate-450 dark:text-slate-400'}`} dir="ltr">{leader.email}</p>
                                   <div className="flex items-center gap-2 mt-1.5">
                                     {leaderChurch ? (
                                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-slate-200/60 shadow-3xs ${churchColor.badge}`}>
