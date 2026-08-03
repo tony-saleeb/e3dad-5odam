@@ -923,8 +923,8 @@ export default function AdminDashboard() {
               <>
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-slate-50/50 p-5 rounded-3xl border border-slate-100 gap-4">
                   <div>
-                    <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
-                      <span className="w-1.5 h-4 rounded-full bg-slate-700 inline-block" />
+                    <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
+                      <span className="w-1.5 h-4 rounded-full bg-emerald-600 inline-block" />
                       سجل حجوزات المشاريع الكنسية
                     </h3>
                     <p className="text-xs text-slate-400 font-bold mt-1">إجمالي الحجوزات المسجلة بالنظام: {bookings.length} حجز</p>
@@ -985,36 +985,45 @@ export default function AdminDashboard() {
                   <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1 scrollbar-hide">
                     {bookings.map((b) => {
                       const memberCount = b.teamMembers ? b.teamMembers.length : 0;
+                      const churchColor = getChurchColor(b.churchName || '');
+                      
                       return (
-                        <div key={b.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 sm:px-4 sm:py-3.5 rounded-2xl transition-all duration-200 gap-3.5 sm:gap-4 hover:shadow-2xs">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-4 rounded-full bg-slate-700 shrink-0" />
-                              <p className="font-black text-slate-800 text-sm leading-normal pb-0.5 truncate">{b.churchName}</p>
+                        <div key={b.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white dark:bg-slate-900 border-slate-150/70 dark:border-slate-800 hover:shadow-xs border p-4 sm:px-4 sm:py-3.5 rounded-2xl transition-all duration-300 gap-3.5 sm:gap-4">
+                          <div className="flex-1 min-w-0 flex items-start gap-3.5">
+                            <div
+                              className="w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-sm shrink-0 mt-0.5"
+                              style={{ backgroundColor: churchColor.hex || '#10B981' }}
+                            >
+                              {b.churchName ? b.churchName[0] : '؟'}
                             </div>
-                            <p className="text-xs text-slate-500 mt-1 font-bold">
-                              <span className="text-slate-450 font-black">المشروع:</span> {b.title}
-                            </p>
-                            <p className="text-[11px] text-slate-450 mt-1 font-bold flex flex-wrap items-center gap-1">
-                              <span className="text-slate-400 font-bold">الحاجز:</span> 
-                              <span className="text-slate-800 font-black">{b.requesterName}</span> 
-                              <span className="text-slate-400 font-semibold" dir="ltr">({b.requesterEmail})</span>
-                            </p>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-black text-slate-800 dark:text-slate-100 text-sm leading-tight truncate">
+                                {b.churchName}
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-bold">
+                                <span className="text-slate-450 dark:text-slate-500 font-black">المشروع:</span> {b.title}
+                              </p>
+                              <p className="text-[11px] text-slate-450 dark:text-slate-500 mt-1 font-bold flex flex-wrap items-center gap-1">
+                                <span className="text-slate-400 dark:text-slate-500 font-bold">الحاجز:</span> 
+                                <span className="text-slate-800 dark:text-slate-200 font-black">{b.requesterName}</span> 
+                                <span className="text-slate-400 dark:text-slate-500 font-semibold" dir="ltr">({b.requesterEmail})</span>
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="flex items-center justify-between sm:justify-end gap-4 border-t border-slate-100/50 pt-3 sm:pt-0 sm:border-0 shrink-0">
+                          <div className="flex items-center justify-between sm:justify-end gap-4 border-t border-slate-100/50 dark:border-slate-800/50 pt-3 sm:pt-0 sm:border-0 shrink-0">
                             {/* Date / Time */}
                             <div className="flex flex-col items-start sm:items-end text-right sm:text-right">
-                              <p className="text-xs font-black text-slate-700 leading-none">{b.date}</p>
-                              <span dir="ltr" className="inline-block text-[10px] font-bold mt-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200/60 leading-none">
+                              <p className="text-xs font-black text-slate-700 dark:text-slate-300 leading-none">{b.date}</p>
+                              <span dir="ltr" className="inline-block text-[10px] font-bold mt-1 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 leading-none">
                                 {b.startTime} - {b.endTime}
                               </span>
                             </div>
 
                             {/* Team size chip */}
-                            <div className="bg-white border border-slate-150 px-3.5 py-2 rounded-xl flex flex-col items-center justify-center min-w-16 shadow-2xs">
-                              <p className="text-[9px] font-bold text-slate-450 leading-none">الأعضاء</p>
-                              <p className="text-xs font-black text-slate-800 mt-0.5 leading-none">
+                            <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-150 dark:border-slate-700 px-3.5 py-2 rounded-xl flex flex-col items-center justify-center min-w-16 shadow-2xs">
+                              <p className="text-[9px] font-bold text-slate-450 dark:text-slate-500 leading-none">الأعضاء</p>
+                              <p className="text-xs font-black text-slate-800 dark:text-slate-200 mt-0.5 leading-none">
                                 {memberCount}
                               </p>
                             </div>
