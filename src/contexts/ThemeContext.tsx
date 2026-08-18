@@ -27,11 +27,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         body.classList.add('dark');
         root.setAttribute('data-theme', 'dark');
         body.setAttribute('data-theme', 'dark');
+        root.style.colorScheme = 'dark';
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', '#0c1016');
       } else {
         root.classList.remove('dark');
         body.classList.remove('dark');
         root.setAttribute('data-theme', 'light');
         body.setAttribute('data-theme', 'light');
+        root.style.colorScheme = 'light';
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', '#059669');
       }
     });
   }, []);

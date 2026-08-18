@@ -12,7 +12,7 @@ interface ProfileMenuProps {
 
 export default function ProfileMenu({ onClose, variant = 'desktop' }: ProfileMenuProps) {
   const { user, isAdmin, isServant, isChurchLeader, signOut } = useAuth();
-  const { openAdminDashboard, setIsEditingTeamDetails, openServantPortal } = useSchedulerStore();
+  const { openAdminDashboard, setIsEditingTeamDetails, openServantPortal, openLessonPrep } = useSchedulerStore();
   const { theme, toggleTheme } = useTheme();
 
   const churchName = isChurchLeader ? user?.churchName : (!isAdmin && !isServant ? user?.teamDetails?.churchName : undefined);
@@ -45,8 +45,8 @@ export default function ProfileMenu({ onClose, variant = 'desktop' }: ProfileMen
 
   // Shared sizes/styles based on variant
   const containerClass = isMobile
-    ? "absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-[0_8px_40px_-4px_rgba(0,0,0,0.16),0_4px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden animate-fade-in z-50"
-    : "absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-[0_8px_40px_-4px_rgba(0,0,0,0.16),0_4px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden animate-fade-in z-50";
+    ? "absolute left-0 top-full mt-2 w-64 bg-white theme-popper border border-slate-200 dark:border-[var(--border-subtle)] rounded-2xl shadow-[0_8px_40px_-4px_rgba(0,0,0,0.16),0_4px_16px_-2px_rgba(0,0,0,0.08)] dark:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)] overflow-hidden animate-fade-in z-50"
+    : "absolute left-0 top-full mt-2 w-72 bg-white theme-popper border border-slate-200 dark:border-[var(--border-subtle)] rounded-2xl shadow-[0_8px_40px_-4px_rgba(0,0,0,0.16),0_4px_16px_-2px_rgba(0,0,0,0.08)] dark:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)] overflow-hidden animate-fade-in z-50";
 
   const paddingClass = isMobile ? "px-4 py-3" : "px-5 py-4";
   const avatarClass = isMobile ? "w-9 h-9" : "w-11 h-11";
@@ -57,7 +57,7 @@ export default function ProfileMenu({ onClose, variant = 'desktop' }: ProfileMen
   return (
     <div className={containerClass}>
       {/* User Info Header */}
-      <div className={`${paddingClass} border-b border-slate-100 bg-slate-50/60`}>
+      <div className={`${paddingClass} border-b border-slate-100 dark:border-[var(--border-color)] bg-slate-50/60 dark:bg-transparent`}>
         <div className="flex items-center gap-3">
           {user?.photoURL ? (
             <img src={user.photoURL} alt="" className={`${avatarClass} rounded-full object-cover ring-2 ring-slate-200 shadow-sm`} />
@@ -117,6 +117,26 @@ export default function ProfileMenu({ onClose, variant = 'desktop' }: ProfileMen
             <div>
               <p className="text-sm font-bold text-slate-700">إدارة المستخدمين والحجوزات</p>
               {!isMobile && <p className="text-xs text-slate-400">إضافة مسؤولين وقادة فرق</p>}
+            </div>
+          </button>
+        )}
+
+        {!isAdmin && !isChurchLeader && user?.role === 'user' && (
+          <button
+            onClick={() => {
+              onClose();
+              openLessonPrep();
+            }}
+            className={`w-full flex items-center gap-3 ${itemPaddingClass} rounded-xl text-slate-700 hover:bg-slate-50 transition-all text-right cursor-pointer`}
+          >
+            <span className={`${iconBoxClass} rounded-lg bg-amber-50 border border-amber-200/60 flex items-center justify-center shrink-0`}>
+              <svg className={`${svgClass} text-amber-700`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </span>
+            <div>
+              <p className="text-sm font-bold text-slate-700">دفتر تحضير الدرس</p>
+              {!isMobile && <p className="text-xs text-slate-400">اكتب شرحك قبل يوم العرض</p>}
             </div>
           </button>
         )}

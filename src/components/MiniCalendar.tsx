@@ -169,7 +169,7 @@ export default function MiniCalendar() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <div className="bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm dark:shadow-none border border-gray-100 dark:border-[var(--border-color)] p-5">
       {/* Navigation Header */}
       <div className="flex items-center justify-between mb-4">
         <button

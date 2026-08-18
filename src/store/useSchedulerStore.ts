@@ -21,6 +21,7 @@ interface SchedulerStore {
   isEditingTeamDetails: boolean;
   isServantPortalOpen: boolean;
   gradingBooking: Booking | null;
+  isLessonPrepOpen: boolean;
 
   // Actions
   setSelectedDate: (date: string) => void;
@@ -39,6 +40,8 @@ interface SchedulerStore {
   openServantPortal: () => void;
   closeServantPortal: () => void;
   setGradingBooking: (booking: Booking | null) => void;
+  openLessonPrep: () => void;
+  closeLessonPrep: () => void;
 }
 
 // CHURCH ADAPTATION: Initialize to the start of the allowed date range (July 1)
@@ -60,6 +63,7 @@ export const useSchedulerStore = create<SchedulerStore>((set) => ({
   isEditingTeamDetails: false,
   isServantPortalOpen: false,
   gradingBooking: null,
+  isLessonPrepOpen: false,
 
   // UI Actions
   setSelectedDate: (date) => set({ selectedDate: date }),
@@ -78,4 +82,6 @@ export const useSchedulerStore = create<SchedulerStore>((set) => ({
   openServantPortal: () => set({ isServantPortalOpen: true }),
   closeServantPortal: () => set({ isServantPortalOpen: false }),
   setGradingBooking: (booking) => set({ gradingBooking: booking }),
+  openLessonPrep: () => set({ isLessonPrepOpen: true }),
+  closeLessonPrep: () => set({ isLessonPrepOpen: false }),
 }));

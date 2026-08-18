@@ -18,24 +18,33 @@
   --text-muted: #64748b;
   --shadow-color: rgba(15, 23, 42, 0.06);
   --shadow-elevated: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+  --accent: #059669;
   color-scheme: light;
 }
 
 html.dark,
 body.dark,
 [data-theme="dark"] {
-  --bg-main: #0b0f19;
-  --bg-surface: #151c2c;
-  --bg-surface-hover: #1d273e;
-  --bg-panel: #192134;
-  --bg-subtle: #243048;
-  --border-color: #243048;
-  --border-subtle: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --shadow-color: rgba(0, 0, 0, 0.4);
-  --shadow-elevated: 0 12px 30px -5px rgba(0, 0, 0, 0.5);
+  /* Canvas — cool charcoal with a hint of forest, not navy-purple */
+  --bg-main: #0c1016;
+  /* Cards, header */
+  --bg-surface: #151b24;
+  /* Dropdowns, popovers sitting on a surface */
+  --bg-raised: #1c2430;
+  /* Nested chips / inset panels inside cards */
+  --bg-inset: #11171f;
+  --bg-surface-hover: #222b38;
+  --bg-panel: #1a222d;
+  --bg-subtle: #243040;
+  --border-color: rgba(148, 163, 184, 0.12);
+  --border-subtle: rgba(148, 163, 184, 0.2);
+  --text-primary: #e8eef5;
+  --text-secondary: #a8b4c4;
+  --text-muted: #7d8b9c;
+  --accent: #34d399;
+  --accent-muted: rgba(52, 211, 153, 0.14);
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 16px 40px -16px rgba(0, 0, 0, 0.55);
   color-scheme: dark;
 }
 
@@ -80,184 +89,277 @@ body {
 }
 
 /* ==========================================================================
-   EXPLICIT DARK MODE STYLING OVERRIDES
+   DARK MODE — elevation, type hierarchy, tinted chips
+   Scoped to html.dark so one class on <html> drives the whole tree.
    ========================================================================== */
 
-/* Root & Body background */
+html.dark {
+  accent-color: var(--accent);
+}
+
 html.dark,
-html.dark body,
-body.dark,
-[data-theme="dark"],
-[data-theme="dark"] body {
-  background-color: #0b0f19 !important;
-  color: #f8fafc !important;
-}
-
-/* Main Layout Wrapper */
-.dark div.min-h-screen,
-html.dark div.min-h-screen,
-body.dark div.min-h-screen,
-[data-theme="dark"] div.min-h-screen,
-.dark main,
-html.dark main,
-body.dark main {
-  background-color: #0b0f19 !important;
-}
-
-/* White Containers & Header Cards */
-.dark .bg-white,
-html.dark .bg-white,
-body.dark .bg-white,
-[data-theme="dark"] .bg-white,
-.dark header,
-html.dark header,
-body.dark header,
-[data-theme="dark"] header {
-  background-color: var(--bg-surface) !important;
-  color: var(--text-primary) !important;
-  box-shadow: var(--shadow-elevated) !important;
-}
-
-/* Hover States for Dark Cards */
-.dark .hover\:bg-white:hover,
-html.dark .hover\:bg-white:hover {
-  background-color: #1d273e !important;
-}
-
-.dark .hover\:bg-slate-50:hover,
-html.dark .hover\:bg-slate-50:hover {
-  background-color: #192134 !important;
-}
-
-/* Light Slate Containers & Sub-Panels */
-.dark .bg-slate-50,
-.dark .bg-slate-100,
-html.dark .bg-slate-50,
-html.dark .bg-slate-100,
-body.dark .bg-slate-50,
-body.dark .bg-slate-100,
-[data-theme="dark"] .bg-slate-50,
-[data-theme="dark"] .bg-slate-100 {
+html.dark body {
   background-color: var(--bg-main) !important;
   color: var(--text-primary) !important;
 }
 
-/* Gray Panels used inside White Cards (e.g., hover:bg-gray-100) */
-.dark .bg-gray-50,
-.dark .bg-gray-100,
+html.dark body {
+  background-image: radial-gradient(
+    ellipse 90% 50% at 50% -20%,
+    rgba(52, 211, 153, 0.07),
+    transparent 58%
+  );
+  background-attachment: fixed;
+}
+
+html.dark div.min-h-screen,
+html.dark main {
+  background-color: var(--bg-main) !important;
+}
+
+/* —— Surfaces —— */
+html.dark .bg-white,
+html.dark [class*="bg-white/"],
+html.dark header {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .theme-popper {
+  background-color: var(--bg-raised) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+html.dark header {
+  border-color: var(--border-color) !important;
+  box-shadow: 0 1px 0 var(--border-color) !important;
+}
+
+html.dark .hover\:bg-white:hover {
+  background-color: var(--bg-surface-hover) !important;
+}
+
+html.dark .hover\:bg-slate-50:hover,
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover {
+  background-color: var(--bg-surface-hover) !important;
+}
+
+/* Page-level slate-50 stays canvas; nested 50/100 become inset so cards keep depth */
+html.dark .bg-slate-50,
+html.dark [class*="bg-slate-50/"] {
+  background-color: var(--bg-inset) !important;
+}
+
+html.dark .bg-slate-100,
 html.dark .bg-gray-50,
-html.dark .bg-gray-100 {
+html.dark .bg-gray-100,
+html.dark [class*="bg-slate-100/"] {
   background-color: var(--bg-panel) !important;
   color: var(--text-primary) !important;
 }
 
-/* Hover States for Sub-Panels */
-.dark .hover\:bg-gray-100:hover,
-html.dark .hover\:bg-gray-100:hover,
-.dark .hover\:bg-gray-50:hover,
-html.dark .hover\:bg-gray-50:hover {
-  background-color: var(--bg-surface-hover) !important;
-}
-
-/* Translucent & Elevated Slate Panels */
-.dark .bg-slate-50\/20,
-.dark .bg-slate-50\/30,
-.dark .bg-slate-50\/40,
-.dark .bg-slate-50\/50,
-.dark .bg-slate-50\/60,
-.dark .bg-slate-50\/70,
-.dark .bg-slate-50\/80,
-.dark .bg-slate-100\/85,
-.dark .bg-slate-200\/60,
-.dark .bg-slate-200,
 html.dark .bg-slate-200,
-body.dark .bg-slate-200 {
-  background-color: var(--bg-surface-hover) !important;
+html.dark [class*="bg-slate-200"] {
+  background-color: var(--bg-subtle) !important;
   color: var(--text-primary) !important;
 }
 
-/* Dark Modal Overlay Backdrop */
 html.dark .bg-slate-900\/40,
 html.dark .bg-slate-900\/50,
 html.dark .bg-slate-900\/60,
 html.dark .bg-slate-900\/70,
 html.dark .bg-black\/50,
-html.dark .bg-black\/60,
-body.dark .bg-slate-900\/50,
-body.dark .bg-black\/50 {
-  background-color: rgba(0, 0, 0, 0.75) !important;
+html.dark .bg-black\/60 {
+  background-color: rgba(4, 8, 12, 0.72) !important;
 }
 
-/* Universal Dark Borders */
-.dark .border-slate-50,
-.dark .border-slate-100,
-.dark .border-slate-150\/40,
-.dark .border-slate-150\/50,
-.dark .border-slate-150\/70,
-.dark .border-slate-200,
-.dark .border-slate-200\/50,
-.dark .border-slate-200\/60,
-.dark .border-slate-200\/80,
-.dark .border-slate-300,
-.dark .border-gray-100,
-.dark .border-gray-200,
-html.dark .border-slate-200,
-html.dark .border-gray-100 {
+/* —— Borders —— */
+html.dark [class~="border-slate-50"],
+html.dark [class*="border-slate-50/"],
+html.dark [class~="border-slate-100"],
+html.dark [class*="border-slate-100/"],
+html.dark [class*="border-slate-150"],
+html.dark [class~="border-slate-200"],
+html.dark [class*="border-slate-200/"],
+html.dark [class~="border-slate-300"],
+html.dark [class~="border-gray-100"],
+html.dark [class~="border-gray-200"] {
   border-color: var(--border-color) !important;
 }
 
-/* Headings and Primary Text */
-.dark .text-slate-900,
-.dark .text-slate-850,
-.dark .text-slate-800,
-.dark .text-slate-700,
-.dark .text-gray-900,
-.dark .text-gray-800,
-.dark .text-gray-700,
+/* —— Type hierarchy (was flattened: 400–800 all became the same color) —— */
 html.dark .text-slate-900,
+html.dark .text-slate-850,
 html.dark .text-slate-800,
-html.dark .text-slate-700,
 html.dark .text-gray-900,
 html.dark .text-gray-800 {
   color: var(--text-primary) !important;
 }
 
-/* Secondary & Muted Text */
-.dark .text-slate-600,
-.dark .text-slate-500,
-.dark .text-slate-450,
-.dark .text-slate-400,
-.dark .text-gray-600,
-.dark .text-gray-500,
-.dark .text-gray-400,
+html.dark .text-slate-700,
 html.dark .text-slate-600,
-html.dark .text-slate-500,
-html.dark .text-slate-400,
-html.dark .text-gray-600,
-html.dark .text-gray-500 {
+html.dark .text-gray-700,
+html.dark .text-gray-600 {
   color: var(--text-secondary) !important;
 }
 
-/* Inputs, Selects & Textareas */
-.dark input:not([type="checkbox"]):not([type="radio"]),
-.dark select,
-.dark textarea,
+html.dark .text-slate-500,
+html.dark .text-slate-450,
+html.dark .text-slate-400,
+html.dark .text-gray-500,
+html.dark .text-gray-400,
+html.dark .text-gray-300,
+html.dark .text-gray-200 {
+  color: var(--text-muted) !important;
+}
+
+/* —— Forms —— */
 html.dark input:not([type="checkbox"]):not([type="radio"]),
 html.dark select,
 html.dark textarea {
-  background-color: var(--bg-surface) !important;
+  background-color: var(--bg-inset) !important;
   color: var(--text-primary) !important;
-  border-color: var(--border-color) !important;
+  border-color: var(--border-subtle) !important;
 }
 
-.dark input:focus,
-.dark select:focus,
-.dark textarea:focus,
 html.dark input:focus,
 html.dark select:focus,
 html.dark textarea:focus {
-  border-color: #10b981 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18) !important;
+}
+
+html.dark ::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 0.85;
+}
+
+html.dark ::selection {
+  background: rgba(52, 211, 153, 0.28);
+  color: var(--text-primary);
+}
+
+/* —— Semantic tints: wash light-50 chips into translucent dark tokens —— */
+html.dark [class~="bg-emerald-50"],
+html.dark [class*="bg-emerald-50/"],
+html.dark [class~="bg-emerald-100"],
+html.dark [class*="bg-emerald-100/"] {
+  background-color: rgba(52, 211, 153, 0.12) !important;
+}
+html.dark [class~="text-emerald-600"],
+html.dark [class~="text-emerald-700"],
+html.dark [class~="text-emerald-800"],
+html.dark [class~="text-emerald-950"] {
+  color: #6ee7b7 !important;
+}
+html.dark [class~="border-emerald-100"],
+html.dark [class~="border-emerald-200"],
+html.dark [class*="border-emerald-200/"],
+html.dark [class~="border-emerald-300"],
+html.dark [class*="border-emerald-300/"] {
+  border-color: rgba(52, 211, 153, 0.28) !important;
+}
+
+html.dark [class~="bg-amber-50"],
+html.dark [class*="bg-amber-50/"],
+html.dark [class~="bg-amber-100"],
+html.dark [class*="bg-amber-100/"],
+html.dark [class~="bg-orange-50"],
+html.dark [class*="bg-orange-50/"] {
+  background-color: rgba(251, 191, 36, 0.12) !important;
+}
+html.dark [class~="text-amber-500"],
+html.dark [class~="text-amber-600"],
+html.dark [class~="text-amber-700"],
+html.dark [class~="text-amber-800"] {
+  color: #fbbf24 !important;
+}
+html.dark [class~="border-amber-100"],
+html.dark [class~="border-amber-200"],
+html.dark [class*="border-amber-200/"],
+html.dark [class~="border-amber-300"] {
+  border-color: rgba(251, 191, 36, 0.28) !important;
+}
+
+html.dark [class~="bg-indigo-50"],
+html.dark [class*="bg-indigo-50/"],
+html.dark [class~="bg-indigo-100"] {
+  background-color: rgba(129, 140, 248, 0.14) !important;
+}
+html.dark [class~="text-indigo-600"],
+html.dark [class~="text-indigo-700"] {
+  color: #a5b4fc !important;
+}
+html.dark [class~="border-indigo-200"] {
+  border-color: rgba(129, 140, 248, 0.3) !important;
+}
+
+html.dark [class~="bg-rose-50"],
+html.dark [class*="bg-rose-50/"],
+html.dark [class~="bg-rose-100"],
+html.dark [class~="bg-red-50"],
+html.dark [class~="bg-red-100"] {
+  background-color: rgba(251, 113, 133, 0.12) !important;
+}
+html.dark [class~="text-rose-600"],
+html.dark [class~="text-rose-700"],
+html.dark [class~="text-red-600"],
+html.dark [class~="text-red-700"] {
+  color: #fda4af !important;
+}
+html.dark [class~="border-rose-100"],
+html.dark [class~="border-rose-200"],
+html.dark [class*="border-rose-200/"],
+html.dark [class~="border-rose-300"],
+html.dark [class~="border-red-200"] {
+  border-color: rgba(251, 113, 133, 0.28) !important;
+}
+
+html.dark [class~="bg-teal-50"],
+html.dark [class~="bg-cyan-50"] {
+  background-color: rgba(45, 212, 191, 0.12) !important;
+}
+html.dark [class~="text-teal-700"],
+html.dark [class~="text-cyan-700"] {
+  color: #5eead4 !important;
+}
+
+html.dark [class~="bg-blue-50"],
+html.dark [class~="bg-sky-50"] {
+  background-color: rgba(56, 189, 248, 0.12) !important;
+}
+html.dark [class~="text-blue-700"],
+html.dark [class~="text-sky-700"] {
+  color: #7dd3fc !important;
+}
+
+html.dark [class~="bg-purple-50"],
+html.dark [class~="bg-violet-50"] {
+  background-color: rgba(167, 139, 250, 0.14) !important;
+}
+html.dark [class~="text-purple-600"],
+html.dark [class~="text-purple-700"] {
+  color: #c4b5fd !important;
+}
+html.dark [class~="border-purple-100"],
+html.dark [class~="border-purple-200"],
+html.dark [class*="border-purple-200/"] {
+  border-color: rgba(167, 139, 250, 0.3) !important;
+}
+
+html.dark [class~="bg-pink-50"] {
+  background-color: rgba(244, 114, 182, 0.12) !important;
+}
+html.dark [class~="text-pink-700"] {
+  color: #f9a8d4 !important;
+}
+
+html.dark [class~="bg-yellow-50"] {
+  background-color: rgba(250, 204, 21, 0.12) !important;
+}
+html.dark [class~="text-yellow-800"] {
+  color: #fde68a !important;
 }
 
 /* Touch-friendly scrolling */
@@ -284,12 +386,12 @@ html.dark textarea:focus {
 
 html.dark ::-webkit-scrollbar-thumb,
 body.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #3d4a5c;
 }
 
 html.dark ::-webkit-scrollbar-thumb:hover,
 body.dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #526174;
 }
 
 /* Hide scrollbar utility */
@@ -343,7 +445,7 @@ body.dark ::-webkit-scrollbar-thumb:hover {
 
 /* Focus styles */
 *:focus-visible {
-  outline: 2px solid #10b981;
+  outline: 2px solid var(--accent, #10b981);
   outline-offset: 2px;
 }
 

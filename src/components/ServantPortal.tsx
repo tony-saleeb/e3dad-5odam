@@ -10,6 +10,7 @@ import { collection, query, where, onSnapshot, doc, setDoc } from 'firebase/fire
 import { useToast } from './Toast';
 import { TeamEvaluation, Booking } from '@/types';
 import { getChurchColor } from '@/data/initialData';
+import LessonPrepReader from '@/components/LessonPrepReader';
 
 const getFieldIcon = (name: string) => {
   const n = name.toLowerCase();
@@ -338,7 +339,7 @@ export default function ServantPortal() {
                       </div>
 
                       {/* Expanded Content (Hidden by default) */}
-                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[800px] opacity-100 mt-5' : 'max-h-0 opacity-0'}`}>
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[1200px] opacity-100 mt-5' : 'max-h-0 opacity-0'}`}>
                         {/* Team details */}
                         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-4 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
                           <p className="text-[12px] text-slate-600 font-bold leading-tight">
@@ -347,6 +348,15 @@ export default function ServantPortal() {
                           <p className="text-[11px] text-slate-500 leading-relaxed font-bold">
                             الأعضاء: <span className="text-slate-700">{booking.teamMembers?.map(m => m.name).join('، ') || 'لا يوجد أعضاء'}</span>
                           </p>
+                        </div>
+
+                        <div className="mb-4" onClick={(e) => e.stopPropagation()}>
+                          <LessonPrepReader
+                            leaderEmail={booking.requesterEmail}
+                            leaderName={booking.requesterName}
+                            projectTitle={booking.title}
+                            variant="envelope"
+                          />
                         </div>
 
                         {/* Servant evaluations list breakdown */}
@@ -471,6 +481,14 @@ export default function ServantPortal() {
 
               {/* Evaluation Fields Container */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/20">
+                <LessonPrepReader
+                  leaderEmail={selectedBooking.requesterEmail}
+                  leaderName={selectedBooking.requesterName}
+                  projectTitle={selectedBooking.title}
+                  variant="sheet"
+                  defaultOpen
+                />
+
                 {evaluationFields && evaluationFields.length > 0 ? (
                   evaluationFields.map((field) => {
                     const currentValue = grades[field.id] !== undefined ? grades[field.id] : 0;

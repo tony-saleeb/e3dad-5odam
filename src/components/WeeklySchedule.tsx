@@ -253,7 +253,7 @@ export default function WeeklySchedule() {
   const isMobileToday = isToday(mobileSelectedDay);
 
   return (
-    <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="flex-1 bg-white dark:bg-[var(--bg-surface)] rounded-2xl shadow-sm dark:shadow-none border border-gray-100 dark:border-[var(--border-color)] overflow-hidden">
       {/* ===== MOBILE VIEW ===== */}
       <div className="lg:hidden" dir="rtl">
         {/* Mobile Header */}

@@ -14,9 +14,9 @@ export default function ThemeToggle() {
         e.stopPropagation();
         toggleTheme();
       }}
-      className={`relative z-30 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 cursor-pointer select-none active:scale-95 group shadow-xs ${
+      className={`relative z-30 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 cursor-pointer select-none active:scale-95 group ${
         isDark
-          ? 'bg-slate-900 border-slate-700/80 text-slate-100 hover:bg-slate-800 hover:border-amber-500/40 hover:shadow-amber-500/10'
+          ? 'bg-[var(--bg-inset)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] hover:border-amber-400/30'
           : 'bg-slate-100 border-slate-300/80 text-slate-800 hover:bg-slate-200/80 hover:border-slate-400/80'
       }`}
       title={isDark ? 'التحويل للوضع الفاتح' : 'التحويل للوضع الداكن'}

@@ -9,6 +9,7 @@ import { Booking } from '@/types';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getChurchColor } from '@/data/initialData';
+import LessonPrepReader from '@/components/LessonPrepReader';
 
 interface EventModalProps {
   booking: Booking | null;
@@ -20,7 +21,7 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
   const { user, isAdmin, isServant, isChurchLeader } = useAuth();
   const { updateBookingStatus, deleteBooking } = useBookings();
   const { settings } = useSettings();
-  const { openServantPortal, setGradingBooking } = useSchedulerStore();
+  const { openServantPortal, setGradingBooking, openLessonPrep } = useSchedulerStore();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hasEvaluated, setHasEvaluated] = useState(false);
@@ -269,6 +270,37 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
             )}
           </div>
 
+          {isServant && (
+            <div className="px-6 pb-4">
+              <LessonPrepReader
+                leaderEmail={booking.requesterEmail}
+                leaderName={booking.requesterName}
+                projectTitle={booking.title}
+                variant="envelope"
+              />
+            </div>
+          )}
+
+          {/* Team leader: open private lesson notebook */}
+          {user?.role === 'user' &&
+            !!user.email &&
+            (booking.requesterEmail || '').toLowerCase() === user.email.toLowerCase() && (
+            <div className="px-6 pb-4 pt-3 bg-amber-50/30 border-t border-amber-100 shrink-0">
+              <button
+                onClick={() => {
+                  onClose();
+                  openLessonPrep();
+                }}
+                className="w-full py-3.5 px-6 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl shadow-lg shadow-amber-600/10 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 text-sm cursor-pointer"
+              >
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                فتح دفتر تحضير هذا الدرس
+              </button>
+            </div>
+          )}
+
           {/* Servant Evaluation Shortcut Button */}
           {isServant && booking.status === 'approved' && !hasEvaluated && (
             <div className="px-6 pb-6 pt-3 bg-indigo-50/20 border-t border-indigo-100 shrink-0">
@@ -343,7 +375,12 @@ export default function EventModal({ booking, isOpen, onClose }: EventModalProps
           )}
 
           {/* View-only notice for non-owners or disabled cancellation */}
-          {!canModify && (
+          {!canModify &&
+            !(
+              user?.role === 'user' &&
+              !!user.email &&
+              (booking.requesterEmail || '').toLowerCase() === user.email.toLowerCase()
+            ) && (
             <div className="px-6 py-4 bg-slate-50/40 border-t border-slate-100 shrink-0">
               <p className="text-center text-xs text-slate-500 bg-slate-50/80 border border-slate-100 rounded-xl py-3 px-4 font-medium leading-relaxed flex items-center justify-center gap-1.5">
                 <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
