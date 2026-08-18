@@ -170,7 +170,6 @@ graph TB
 | **Security**   | Firebase App Check + reCAPTCHA v3 | Bot protection & request validation |
 | **Styling**    | CSS Modules + Custom Properties   | RTL-first responsive design         |
 | **Deployment** | Vercel                            | Edge network, auto-deploy from Git  |
-| **Testing**    | Vitest + React Testing Library    | Unit & integration testing          |
 | **Data I/O**   | ExcelJS                           | Bulk import/export of `.xlsx` files |
 
 <br/>
@@ -239,25 +238,6 @@ Open **[http://localhost:3000](http://localhost:3000)** and start scheduling! �
 
 <br/>
 
-## 🧪 Testing
-
-```bash
-# Run all tests
-npm run test -- --run
-
-# Watch mode
-npm run test
-
-# Type checking
-npx tsc --noEmit
-```
-
-<br/>
-
----
-
-<br/>
-
 ## 📂 Project Structure
 
 ```
@@ -272,8 +252,7 @@ e3dad-5odam/
 │   │   └── Leaderboard.tsx       # Rankings display
 │   ├── contexts/         # React Context providers
 │   │   └── AuthContext.tsx       # Authentication & roles
-│   ├── lib/              # Utilities & Firebase config
-│   └── __tests__/        # Vitest test suites
+│   └── lib/              # Utilities & Firebase config
 ├── public/               # Static assets & PWA manifest
 ├── firestore.rules       # Firestore security rules
 └── docs/screenshots/     # README screenshots

@@ -71,8 +71,6 @@ export const BookingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { user } = useAuth();
   const { startMonth, endMonth } = settings.bookingRange;
 
-
-
   // Real-time listener — Firestore onSnapshot replaces polling + Supabase channels
   useEffect(() => {
     if (!user) {

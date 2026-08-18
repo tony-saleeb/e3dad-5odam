@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import WeeklySchedule from '@/components/WeeklySchedule';
 import MiniCalendar from '@/components/MiniCalendar';
+import LessonPrepCard from '@/components/LessonPrepCard';
+import LessonPrepSheet from '@/components/LessonPrepSheet';
 import BookingModal from '@/components/BookingModal';
 import AdminDashboard from '@/components/AdminDashboard';
 import EventModal from '@/components/EventModal';
@@ -21,10 +23,10 @@ export default function Home() {
   // Show loading spinner while checking auth
   if (loading) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-emerald-50 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-emerald-50 dark:from-[#0c1016] dark:via-[#0c1016] dark:to-[#102018] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-500 font-medium">جاري التحميل...</p>
+          <p className="text-gray-500 dark:text-slate-400 font-medium">جاري التحميل...</p>
         </div>
       </div>
     );
@@ -42,7 +44,7 @@ export default function Home() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-200">
+      <div className="min-h-screen bg-slate-50 dark:bg-[var(--bg-main)] text-slate-900 dark:text-[var(--text-primary)] transition-colors duration-200">
         {/* Header */}
         <Header />
 
@@ -57,6 +59,7 @@ export default function Home() {
             {/* Sidebar - Below on mobile, Right on desktop */}
             <div className="w-full lg:w-72 lg:shrink-0 space-y-4 lg:space-y-6">
               <MiniCalendar />
+              {user.role === 'user' && <LessonPrepCard />}
             </div>
           </div>
         </main>
@@ -70,6 +73,7 @@ export default function Home() {
           isOpen={isEventModalOpen}
           onClose={closeEventModal}
         />
+        <LessonPrepSheet />
         
         {/* Toast Notifications */}
         <ToastContainer />

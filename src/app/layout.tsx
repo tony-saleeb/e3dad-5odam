@@ -54,9 +54,15 @@ export default function RootLayout({
                   if (isDark) {
                     document.documentElement.classList.add('dark');
                     document.documentElement.setAttribute('data-theme', 'dark');
+                    document.documentElement.style.colorScheme = 'dark';
+                    var m = document.querySelector('meta[name="theme-color"]');
+                    if (m) m.setAttribute('content', '#0c1016');
                   } else {
                     document.documentElement.classList.remove('dark');
                     document.documentElement.setAttribute('data-theme', 'light');
+                    document.documentElement.style.colorScheme = 'light';
+                    var m2 = document.querySelector('meta[name="theme-color"]');
+                    if (m2) m2.setAttribute('content', '#059669');
                   }
                 } catch (e) {}
               })();
@@ -64,7 +70,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${cairo.variable} font-sans antialiased bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200`} suppressHydrationWarning>
+      <body className={`${cairo.variable} font-sans antialiased bg-slate-50 dark:bg-[var(--bg-main)] text-slate-900 dark:text-[var(--text-primary)] transition-colors duration-200`} suppressHydrationWarning>
         <ThemeProvider>
           <SettingsProvider>
             <AuthProvider>

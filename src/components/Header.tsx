@@ -8,7 +8,8 @@ import ThemeToggle from './ThemeToggle';
 
 export default function Header() {
   const { user, isServant } = useAuth();
-  const { openServantPortal } = useSchedulerStore();
+  const { openServantPortal, openLessonPrep } = useSchedulerStore();
+  const isTeamLeader = user?.role === 'user';
   
   const [profileOpen, setProfileOpen] = useState(false);
   const desktopRef = useRef<HTMLDivElement>(null);
@@ -75,7 +76,7 @@ export default function Header() {
               {isServant && (
                 <button
                   onClick={openServantPortal}
-                  className="px-4 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-all font-bold text-sm flex items-center gap-2 cursor-pointer shadow-sm"
+                  className="px-4 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:border-indigo-400/25 dark:text-indigo-300 dark:hover:bg-indigo-500/25 transition-all font-bold text-sm flex items-center gap-2 cursor-pointer shadow-sm"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -84,10 +85,22 @@ export default function Header() {
                 </button>
               )}
 
+              {isTeamLeader && (
+                <button
+                  onClick={openLessonPrep}
+                  className="px-4 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 dark:bg-amber-500/15 dark:border-amber-400/25 dark:text-amber-300 dark:hover:bg-amber-500/25 transition-all font-bold text-sm flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                  <span>دفتر التحضير</span>
+                </button>
+              )}
+
               <div className="relative">
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2.5 pl-3 pr-1 py-1 rounded-2xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-white transition-all shadow-sm cursor-pointer"
+                  className="flex items-center gap-2.5 pl-3 pr-1 py-1 rounded-2xl border border-slate-200 dark:border-[var(--border-subtle)] hover:border-slate-300 dark:hover:border-[var(--border-subtle)] bg-slate-50 dark:bg-[var(--bg-inset)] hover:bg-white dark:hover:bg-[var(--bg-surface-hover)] transition-all shadow-sm cursor-pointer"
                 >
                   {user?.photoURL ? (
                     <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-200" />
@@ -127,6 +140,17 @@ export default function Header() {
           </div>
 
           <div className="flex items-center gap-2">
+            {isTeamLeader && (
+              <button
+                onClick={openLessonPrep}
+                aria-label="دفتر التحضير"
+                className="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-400/25 text-amber-800 dark:text-amber-300 flex items-center justify-center cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </button>
+            )}
             <ThemeToggle />
 
             {/* Mobile profile button */}
