@@ -37,6 +37,7 @@ export default function LessonPrepSheet() {
   const { user } = useAuth();
   const { isLessonPrepOpen, closeLessonPrep } = useSchedulerStore();
   const { toast } = useToast();
+  const isTeamLeader = user?.role === 'user';
   const {
     text,
     setText,
@@ -47,11 +48,15 @@ export default function LessonPrepSheet() {
     wordCount,
     hasDraft,
     flush,
-  } = useLessonPrep(user?.email);
+  } = useLessonPrep(isTeamLeader ? user?.email : undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const isTeamLeader = user?.role === 'user';
+  useEffect(() => {
+    if (isLessonPrepOpen && saveState === 'error') {
+      toast.error('تعذّر حفظ دفتر التحضير. تحقق من الاتصال وحاول مرة أخرى.');
+    }
+  }, [isLessonPrepOpen, saveState, toast]);
 
   useEffect(() => {
     if (!isLessonPrepOpen) {
@@ -101,11 +106,17 @@ export default function LessonPrepSheet() {
     }
     clearDraft();
     setConfirmClear(false);
-    toast.info('تم مسح المسودة من هذا الجهاز');
+    toast.info('تم مسح المسودة');
   };
 
   const saveLabel =
-    saveState === 'saving' ? 'جاري الحفظ…' : saveState === 'saved' ? 'حُفظ على جهازك' : 'يُحفظ تلقائياً';
+    saveState === 'saving'
+      ? 'جاري الحفظ…'
+      : saveState === 'saved'
+        ? 'تم الحفظ'
+        : saveState === 'error'
+          ? 'تعذّر الحفظ'
+          : 'يُحفظ تلقائياً';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" dir="rtl">
@@ -180,7 +191,7 @@ export default function LessonPrepSheet() {
               ref={textareaRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={'اكتب هنا بحرّية…\n\nمثال: سأبدأ بمشكلة نواجهها في الخدمة، ثم أعرض فكرة المشروع، وبعدها خطوات التنفيذ، وأختم بسؤال للنقاش.'}
+              placeholder={'اكتب هنا بحرّية — بدون حد لعدد الحروف…\n\nمثال: سأبدأ بمشكلة نواجهها في الخدمة، ثم أعرض فكرة المشروع، وبعدها خطوات التنفيذ، وأختم بسؤال للنقاش.'}
               className="w-full h-full min-h-64 resize-none rounded-2xl border border-amber-100 dark:border-slate-700 bg-amber-50/40 dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 text-sm leading-7 px-4 py-3 outline-none focus:border-amber-300 dark:focus:border-amber-700 placeholder:text-slate-400"
             />
           </div>
@@ -191,9 +202,9 @@ export default function LessonPrepSheet() {
                 <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                يُحفظ على هذا الجهاز فقط — لا يُرسل إلى السيرفر
+                يُحفظ تلقائياً — يظهر للمقيم عند التقييم
               </span>
-              <span className="text-slate-400 font-bold shrink-0">
+              <span className={`font-bold shrink-0 ${saveState === 'error' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
                 {wordCount} كلمة · {saveLabel}
               </span>
             </div>

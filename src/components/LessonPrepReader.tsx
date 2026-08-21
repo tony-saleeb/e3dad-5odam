@@ -55,7 +55,7 @@ export default function LessonPrepReader({
           <div className="min-w-0">
             <p className="text-[12px] font-black text-slate-600 dark:text-slate-300">لا يوجد دفتر تحضير</p>
             <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5">
-              قائد الفريق لم يكتب ملاحظات على هذا الجهاز بعد
+              قائد الفريق لم يكتب ملاحظات بعد
             </p>
           </div>
         </div>
@@ -99,8 +99,8 @@ export default function LessonPrepReader({
       {open && (
         <div className="px-4 pb-4">
           <div
-            className={`relative rounded-xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/80 dark:bg-slate-800/50 px-4 py-3 ${
-              variant === 'sheet' ? 'max-h-56 overflow-y-auto' : 'max-h-40 overflow-y-auto'
+            className={`relative rounded-xl border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/80 dark:bg-slate-800/50 px-4 py-3 overflow-y-auto ${
+              variant === 'sheet' ? 'max-h-[min(70vh,32rem)]' : 'max-h-[min(50vh,24rem)]'
             }`}
             style={{
               backgroundImage:

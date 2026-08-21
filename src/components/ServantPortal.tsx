@@ -339,7 +339,7 @@ export default function ServantPortal() {
                       </div>
 
                       {/* Expanded Content (Hidden by default) */}
-                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[1200px] opacity-100 mt-5' : 'max-h-0 opacity-0'}`}>
+                      <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-none overflow-visible opacity-100 mt-5' : 'max-h-0 overflow-hidden opacity-0'}`}>
                         {/* Team details */}
                         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-4 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
                           <p className="text-[12px] text-slate-600 font-bold leading-tight">

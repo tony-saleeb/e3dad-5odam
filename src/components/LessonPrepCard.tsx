@@ -69,7 +69,7 @@ export default function LessonPrepCard() {
         </div>
 
         {savedLabel && hasDraft && (
-          <p className="mt-2 text-[10px] text-slate-400">آخر حفظ على هذا الجهاز: {savedLabel}</p>
+          <p className="mt-2 text-[10px] text-slate-400">آخر حفظ: {savedLabel}</p>
         )}
       </div>
     </button>

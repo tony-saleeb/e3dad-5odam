@@ -135,5 +135,19 @@ service cloud.firestore {
       // Admins can create notifications for users
       allow create: if isAdmin();
     }
+
+    // ==========================================
+    // 7. Lesson Prep Rules (Team-leader lesson notebooks)
+    // ==========================================
+    match /lesson_prep/{email} {
+      allow read: if isAdmin() || isServant() || (isSignedIn() && currentUserEmail() == email.lower());
+
+      allow create, update: if isUser()
+        && currentUserEmail() == email.lower()
+        && request.resource.data.email == currentUserEmail()
+        && request.resource.data.text is string;
+
+      allow delete: if isUser() && currentUserEmail() == email.lower();
+    }
   }
 }
