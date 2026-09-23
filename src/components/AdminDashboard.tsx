@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchedulerStore } from '@/store/useSchedulerStore';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, setDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, setDoc, deleteDoc, doc, writeBatch, updateDoc, query, where } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { useBookings } from '@/hooks/useBookings';
 import { useSettings } from '@/hooks/useSettings';
@@ -61,6 +61,13 @@ export default function AdminDashboard() {
   const [importRole, setImportRole] = useState<'user' | 'admin' | 'servant' | 'church_leader'>('user');
   const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'user' | 'admin' | 'servant' | 'church_leader'>('all');
   const [expandedLeaderId, setExpandedLeaderId] = useState<string | null>(null);
+  const [editingLeaderId, setEditingLeaderId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftMembers, setDraftMembers] = useState<{ name: string; id: string }[]>([]);
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberCode, setNewMemberCode] = useState('');
+  const [memberEditError, setMemberEditError] = useState('');
+  const [savingLeaderId, setSavingLeaderId] = useState<string | null>(null);
 
   // Restoration and archive state
   const [restoringBookingId, setRestoringBookingId] = useState<string | null>(null);
@@ -143,6 +150,121 @@ export default function AdminDashboard() {
       fetchEvaluations();
     }
   }, [isAdminDashboardOpen, isAdmin]);
+
+  const startLeaderEdit = (leader: AllowedUser) => {
+    setEditingLeaderId(leader.id);
+    setDraftTitle(leader.teamDetails?.title || '');
+    setDraftMembers((leader.teamDetails?.teamMembers || []).map((member) => ({
+      name: member.name,
+      id: member.id,
+    })));
+    setNewMemberName('');
+    setNewMemberCode('');
+    setMemberEditError('');
+  };
+
+  const cancelLeaderEdit = () => {
+    setEditingLeaderId(null);
+    setDraftTitle('');
+    setDraftMembers([]);
+    setNewMemberName('');
+    setNewMemberCode('');
+    setMemberEditError('');
+  };
+
+  const addDraftMember = () => {
+    const name = newMemberName.trim();
+    const code = newMemberCode.trim();
+    const max = settings.teamMemberLimits?.max ?? 20;
+    if (!name) {
+      setMemberEditError('اسم العضو مطلوب');
+      return;
+    }
+    if (!code) {
+      setMemberEditError('كود اعداد خدام مطلوب');
+      return;
+    }
+    if (draftMembers.length >= max) {
+      setMemberEditError(`الحد الأقصى للمشاركين هو ${max}`);
+      return;
+    }
+    setDraftMembers((current) => [...current, { name, id: code }]);
+    setNewMemberName('');
+    setNewMemberCode('');
+    setMemberEditError('');
+  };
+
+  const removeDraftMember = (index: number) => {
+    setDraftMembers((current) => current.filter((_, i) => i !== index));
+    setMemberEditError('');
+  };
+
+  const saveLeaderTeam = async (leader: AllowedUser) => {
+    const title = draftTitle.trim();
+    const members = draftMembers
+      .map((member) => ({ name: member.name.trim(), id: member.id.trim() }))
+      .filter((member) => member.name && member.id);
+    const max = settings.teamMemberLimits?.max ?? 20;
+
+    if (!title) {
+      setMemberEditError('عنوان المشروع مطلوب');
+      return;
+    }
+    if (members.length === 0) {
+      setMemberEditError('يجب أن يبقى عضو واحد على الأقل');
+      return;
+    }
+    if (members.length > max) {
+      setMemberEditError(`الحد الأقصى للمشاركين هو ${max}`);
+      return;
+    }
+
+    const nextDetails = {
+      ...(leader.teamDetails || {}),
+      title,
+      teamMembers: members,
+    };
+
+    setSavingLeaderId(leader.id);
+    setMemberEditError('');
+    try {
+      await updateDoc(doc(db, 'allowed_users', leader.id), {
+        teamDetails: nextDetails,
+        updated_at: new Date().toISOString(),
+      });
+
+      const emails = Array.from(new Set([
+        (leader.email || '').trim(),
+        (leader.email || leader.id).trim().toLowerCase(),
+      ].filter(Boolean)));
+      const bookingSnaps = await Promise.all(emails.map((email) => getDocs(query(
+        collection(db, 'bookings'),
+        where('requesterEmail', '==', email)
+      ))));
+      const bookingDocs = new Map(bookingSnaps.flatMap((snap) => snap.docs.map((bookingDoc) => [bookingDoc.id, bookingDoc] as const)));
+      if (bookingDocs.size > 0) {
+        const batch = writeBatch(db);
+        bookingDocs.forEach((bookingDoc) => {
+          batch.update(bookingDoc.ref, {
+            title,
+            teamMembers: members,
+          });
+        });
+        await batch.commit();
+      }
+
+      setAllowedUsers((current) => current.map((user) => (
+        user.id === leader.id ? { ...user, teamDetails: nextDetails } : user
+      )));
+      cancelLeaderEdit();
+      toast.success('تم تحديث عنوان المشروع وأعضاء الفريق');
+    } catch (err) {
+      console.error('Error updating team details:', err);
+      toast.error('تعذّر حفظ بيانات الفريق. حاول مرة أخرى.');
+    } finally {
+      setSavingLeaderId(null);
+    }
+  };
 
 
 
@@ -1753,7 +1875,7 @@ export default function AdminDashboard() {
                     بيانات القادة المسجلة
                   </h3>
                   <p className="text-xs text-slate-400 font-bold mt-1">
-                    قادة الفرق الذين قاموا بتسجيل بيانات فرقهم. اضغط على أي بطاقة لعرض التفاصيل الكاملة.
+                    قادة الفرق الذين قاموا بتسجيل بيانات فرقهم. اضغط على أي بطاقة لعرض التفاصيل، أو لتعديل عنوان المشروع وإضافة الأعضاء أو حذفهم.
                   </p>
                 </div>
 
@@ -1860,7 +1982,15 @@ export default function AdminDashboard() {
                           >
                             {/* Leader Card Header */}
                             <button
-                              onClick={() => setExpandedLeaderId(isExpanded ? null : leader.id)}
+                              onClick={() => {
+                                if (isExpanded) {
+                                  if (editingLeaderId === leader.id) cancelLeaderEdit();
+                                  setExpandedLeaderId(null);
+                                } else {
+                                  if (editingLeaderId && editingLeaderId !== leader.id) cancelLeaderEdit();
+                                  setExpandedLeaderId(leader.id);
+                                }
+                              }}
                               className="w-full p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer text-right"
                             >
                               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -1912,7 +2042,9 @@ export default function AdminDashboard() {
                                   </div>
                                   <div className="bg-white p-3 border border-slate-100 rounded-xl text-center">
                                     <p className="text-[10px] font-bold text-slate-450">عنوان المشروع</p>
-                                    <p className="text-xs font-black text-slate-800 mt-1 truncate" title={td.title}>{td.title || '—'}</p>
+                                    <p className="text-xs font-black text-slate-800 mt-1 truncate" title={editingLeaderId === leader.id ? draftTitle : td.title}>
+                                      {(editingLeaderId === leader.id ? draftTitle : td.title) || '—'}
+                                    </p>
                                   </div>
                                   <div className="bg-white p-3 border border-slate-100 rounded-xl text-center">
                                     <p className="text-[10px] font-bold text-slate-450">المرحلة العمرية</p>
@@ -1920,13 +2052,96 @@ export default function AdminDashboard() {
                                   </div>
                                 </div>
 
+                                {editingLeaderId === leader.id && (
+                                  <div>
+                                    <label className="block text-[11px] font-black text-slate-600 mb-1.5">عنوان المشروع</label>
+                                    <input
+                                      type="text"
+                                      value={draftTitle}
+                                      onChange={(e) => setDraftTitle(e.target.value)}
+                                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 bg-white focus:outline-none focus:border-slate-800"
+                                      placeholder="عنوان المشروع"
+                                    />
+                                  </div>
+                                )}
+
                                 {/* Team Members List */}
                                 <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-3xs">
-                                  <h4 className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
-                                    <span className="w-1.5 h-3.5 rounded-full bg-slate-700 inline-block" />
-                                    أعضاء الفريق ({memberCount})
-                                  </h4>
-                                  {(!td.teamMembers || td.teamMembers.length === 0) ? (
+                                  <div className="flex items-center justify-between gap-2 mb-3">
+                                    <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                      <span className="w-1.5 h-3.5 rounded-full bg-slate-700 inline-block" />
+                                      أعضاء الفريق ({editingLeaderId === leader.id ? draftMembers.length : memberCount})
+                                    </h4>
+                                    {editingLeaderId !== leader.id && (
+                                      <button
+                                        type="button"
+                                        onClick={() => startLeaderEdit(leader)}
+                                        className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[11px] font-black cursor-pointer hover:bg-slate-900"
+                                      >
+                                        تعديل العنوان والأعضاء
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {editingLeaderId === leader.id && (
+                                    <div className="mb-3 space-y-2">
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                        <input
+                                          type="text"
+                                          value={newMemberName}
+                                          onChange={(e) => setNewMemberName(e.target.value)}
+                                          onKeyDown={(e) => e.key === 'Enter' && addDraftMember()}
+                                          className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
+                                          placeholder="اسم العضو"
+                                        />
+                                        <input
+                                          type="text"
+                                          value={newMemberCode}
+                                          onChange={(e) => setNewMemberCode(e.target.value)}
+                                          onKeyDown={(e) => e.key === 'Enter' && addDraftMember()}
+                                          className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-slate-800"
+                                          placeholder="كود اعداد خدام"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={addDraftMember}
+                                          className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black cursor-pointer hover:bg-emerald-700 shrink-0"
+                                        >
+                                          إضافة
+                                        </button>
+                                      </div>
+                                      <p className="text-[10px] text-slate-400 font-bold">
+                                        الحد الأقصى {settings.teamMemberLimits?.max ?? 20} أعضاء. حفظ التعديل يحدّث بيانات الفريق والحجز المرتبط به.
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {editingLeaderId === leader.id ? (
+                                    draftMembers.length === 0 ? (
+                                      <p className="text-center text-slate-400 text-xs py-4">لم يتم إضافة أعضاء بعد</p>
+                                    ) : (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {draftMembers.map((member, idx) => (
+                                          <div key={`${member.id}-${idx}`} className="flex items-center gap-2.5 p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                                            <span className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-black shrink-0">
+                                              {idx + 1}
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                              <p className="text-xs font-bold text-slate-800 truncate">{member.name}</p>
+                                              <p className="text-[10px] text-slate-400 font-semibold truncate">كود: {member.id}</p>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => removeDraftMember(idx)}
+                                              className="text-[11px] font-black text-rose-600 hover:bg-rose-50 px-2 py-1 rounded-lg cursor-pointer shrink-0"
+                                            >
+                                              حذف
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )
+                                  ) : (!td.teamMembers || td.teamMembers.length === 0) ? (
                                     <p className="text-center text-slate-400 text-xs py-4">لم يتم إضافة أعضاء بعد</p>
                                   ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1941,6 +2156,32 @@ export default function AdminDashboard() {
                                           </div>
                                         </div>
                                       ))}
+                                    </div>
+                                  )}
+
+                                  {editingLeaderId === leader.id && (
+                                    <div className="mt-3 space-y-2">
+                                      {memberEditError && (
+                                        <p className="text-xs font-bold text-rose-600">{memberEditError}</p>
+                                      )}
+                                      <div className="flex gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => saveLeaderTeam(leader)}
+                                          disabled={savingLeaderId === leader.id}
+                                          className="flex-1 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-black cursor-pointer hover:bg-slate-900 disabled:opacity-50"
+                                        >
+                                          {savingLeaderId === leader.id ? 'جاري الحفظ…' : 'حفظ التعديلات'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={cancelLeaderEdit}
+                                          disabled={savingLeaderId === leader.id}
+                                          className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-black cursor-pointer hover:bg-slate-50 disabled:opacity-50"
+                                        >
+                                          إلغاء
+                                        </button>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
